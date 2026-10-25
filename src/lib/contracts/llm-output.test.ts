@@ -105,6 +105,29 @@ describe('parseLlmOutput', () => {
     expect(result.ok).toBe(true)
     expect(input).toEqual(snapshot)
   })
+
+  it.each(['javascript', 'JSON'])('接受 %s 语言标记的代码块', (language) => {
+    const text = '```' + language + '\n' + validJson + '\n```'
+    expect(parseLlmOutput(schema, text)).toEqual({ ok: true, data: validData, repairs: [] })
+  })
+
+  it('代码块解析失败时退回正文中的 JSON', () => {
+    const text = '```javascript\nnot valid json\n```\n正文' + validJson
+    expect(parseLlmOutput(schema, text)).toEqual({ ok: true, data: validData, repairs: [] })
+  })
+
+  it('第三次修复后重新校验并成功', () => {
+    const layeredSchema = z.strictObject({
+      s: z.string().max(12).pipe(z.string().max(8)).pipe(z.string().max(4)),
+    })
+    const result = parseLlmOutput(layeredSchema, JSON.stringify({ s: 'x'.repeat(20) }))
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.data.s).toHaveLength(4)
+      expect(result.repairs).toHaveLength(3)
+    }
+  })
 })
 
 describe('formatIssues', () => {

@@ -84,38 +84,44 @@ function repairIssue(root: unknown, issue: Issue): string | null {
   return null
 }
 
-function extractJson(text: string): string {
+function parseExtractedJson(text: string): { ok: true; value: unknown } | { ok: false } {
   const trimmed = text.trim()
-  const codeBlock = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed)
+  const candidates: string[] = []
+  const codeBlock = /```[^\n`]*\n?([\s\S]*?)```/.exec(trimmed)
   if (codeBlock) {
-    return (codeBlock[1] ?? '').trim()
+    candidates.push((codeBlock[1] ?? '').trim())
   }
 
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
-  return start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed
+  if (start >= 0 && end > start) {
+    candidates.push(trimmed.slice(start, end + 1))
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return { ok: true, value: JSON.parse(candidate) }
+    } catch {
+      continue
+    }
+  }
+
+  return { ok: false }
 }
 
 export function parseLlmOutput<T>(schema: z.ZodType<T>, text: string): LlmParseResult<T> {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(extractJson(text))
-  } catch {
+  const extracted = parseExtractedJson(text)
+  if (!extracted.ok) {
     return { ok: false, error: 'JSON 解析失败' }
   }
 
   // 所有修复都作用于克隆，避免把解析过程产生的修改泄漏给调用方。
-  const candidate = structuredClone(parsed)
+  const candidate = structuredClone(extracted.value)
   const repairs: string[] = []
-  let lastError: z.ZodError | undefined
+  let result = schema.safeParse(candidate)
+  let repairRound = 0
 
-  for (let round = 0; round < 3; round += 1) {
-    const result = schema.safeParse(candidate)
-    if (result.success) {
-      return { ok: true, data: result.data, repairs }
-    }
-    lastError = result.error
-
+  while (!result.success && repairRound < 3) {
     let repaired = false
     for (const issue of result.error.issues) {
       const repair = repairIssue(candidate, issue)
@@ -129,9 +135,13 @@ export function parseLlmOutput<T>(schema: z.ZodType<T>, text: string): LlmParseR
     if (!repaired) {
       return { ok: false, error: formatIssues(result.error) }
     }
+
+    repairRound += 1
+    result = schema.safeParse(candidate)
   }
 
-  return lastError
-    ? { ok: false, error: formatIssues(lastError) }
-    : { ok: false, error: 'JSON 解析失败' }
+  if (result.success) {
+    return { ok: true, data: result.data, repairs }
+  }
+  return { ok: false, error: formatIssues(result.error) }
 }
