@@ -103,6 +103,22 @@ describe('runEventSchema', () => {
     expect(result).toMatchObject({ delta: ' ' })
   })
 
+  it('run.completed 接受可选 warnings', () => {
+    const event = {
+      ...envelope,
+      type: 'run.completed',
+      output: '完成',
+      degraded: true,
+      usage,
+      durationMs: 100,
+      warnings: ['预算不足'],
+    }
+    expect(runEventSchema.safeParse(event).success).toBe(true)
+    expect(runEventSchema.safeParse({ ...event, warnings: Array(6).fill('警告') }).success).toBe(
+      false,
+    )
+  })
+
   it('RunEventBody 分配式去掉 seq 和 t', () => {
     expectTypeOf<Extract<RunEventBody, { type: 'node.started' }>>().toEqualTypeOf<{
       type: 'node.started'

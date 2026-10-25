@@ -117,6 +117,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     degraded: z.boolean(),
     usage: usageSchema,
     durationMs: z.number().int().nonnegative(),
+    warnings: z.array(z.string().trim().min(1).max(200)).max(5).optional(),
   }),
   event({ type: z.literal('run.failed'), error: apiErrorSchema }),
   event({ type: z.literal('run.cancelled') }),

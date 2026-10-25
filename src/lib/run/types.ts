@@ -49,6 +49,7 @@ export type RunState = {
   budget?: { limit: number; used: number; exceeded: boolean }
   output?: string
   degraded: boolean
+  warnings: string[]
   error?: ApiError
   lastT: number
   durationMs?: number

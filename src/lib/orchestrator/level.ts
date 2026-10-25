@@ -12,6 +12,12 @@ export const LEVELS = {
   { label: string; minNodes: number; maxNodes: number; budget: number }
 >
 
+export const FALLBACK_ASSESSMENT: ComplexityAssessment = {
+  dims: { subtasks: 1, tools: 1, parallel: 1, rigor: 1, length: 1 },
+  rationale: '评估失败，按中等复杂度处理',
+  source: 'fallback',
+}
+
 const quickPhrases = new Set([
   '你好',
   '您好',

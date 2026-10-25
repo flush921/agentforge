@@ -285,6 +285,33 @@ describe('applyEvent 其余状态规则', () => {
     expect(next.budget).toEqual({ limit: 100, used: 10, exceeded: true })
   })
 
+  it('run.completed 写入 warnings，省略时为空数组', () => {
+    const base = plannedState(validPlans[0])
+    const completed = applyEvent(base, {
+      seq: 2,
+      t: 20,
+      type: 'run.completed',
+      output: '完成',
+      degraded: true,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      durationMs: 20,
+      warnings: ['预算不足', '审校未完成'],
+    })
+    expect(completed.warnings).toEqual(['预算不足', '审校未完成'])
+
+    const withoutWarnings = applyEvent(base, {
+      seq: 2,
+      t: 20,
+      type: 'run.completed',
+      output: '完成',
+      degraded: false,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      durationMs: 20,
+    })
+    expect(withoutWarnings.warnings).toEqual([])
+    expect(initialRunState().warnings).toEqual([])
+  })
+
   it('run.failed 写入错误', () => {
     const state = plannedState(validPlans[0])
     const next = applyEvent(state, {

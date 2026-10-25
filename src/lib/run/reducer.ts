@@ -64,6 +64,7 @@ export function initialRunState(): RunState {
     nodeOrder: [],
     usage: { inputTokens: 0, outputTokens: 0 },
     degraded: false,
+    warnings: [],
     lastT: 0,
   }
 }
@@ -269,6 +270,7 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         degraded: event.degraded,
         durationMs: event.durationMs,
         usage: event.usage,
+        warnings: event.warnings ?? [],
         nodes: closeOpenNodes(state.nodes, event.t, '未执行'),
         lastT: nextT(state, event.t),
       }

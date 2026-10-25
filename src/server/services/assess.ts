@@ -3,20 +3,12 @@ import 'server-only'
 import type { AssistantSpec } from '@/lib/contracts/assistant'
 import { parseLlmOutput } from '@/lib/contracts/llm-output'
 import { complexityAssessmentSchema, type ComplexityAssessment } from '@/lib/contracts/plan'
-import { ruleAssess } from '@/lib/orchestrator/level'
+import { FALLBACK_ASSESSMENT, ruleAssess } from '@/lib/orchestrator/level'
 import type { LlmClient } from '@/server/llm/types'
 import { buildAssessPrompt } from '@/server/prompts/assess'
 import type { ServiceResult } from './types'
 
 const assessmentOutputSchema = complexityAssessmentSchema.omit({ source: true })
-
-function fallbackAssessment(): ComplexityAssessment {
-  return {
-    dims: { subtasks: 1, tools: 1, parallel: 1, rigor: 1, length: 1 },
-    rationale: '评估失败，按中等复杂度处理',
-    source: 'fallback',
-  }
-}
 
 function isCancellation(error: unknown, signal: AbortSignal): boolean {
   return (
@@ -48,7 +40,7 @@ export async function assessTask(
     })
     const parsed = parseLlmOutput(assessmentOutputSchema, result.text)
     if (!parsed.ok) {
-      return { ok: true, value: fallbackAssessment() }
+      return { ok: true, value: FALLBACK_ASSESSMENT }
     }
 
     return { ok: true, value: { ...parsed.data, source: 'llm' } }
@@ -56,6 +48,6 @@ export async function assessTask(
     if (isCancellation(error, signal)) {
       throw error
     }
-    return { ok: true, value: fallbackAssessment() }
+    return { ok: true, value: FALLBACK_ASSESSMENT }
   }
 }
