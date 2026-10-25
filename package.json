@@ -18,7 +18,9 @@
     "check": "npm run lint && npm run typecheck && npm run test && npm run format:check"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "3.0.73",
     "@base-ui/react": "1.9.0",
+    "ai": "7.0.153",
     "class-variance-authority": "0.7.1",
     "cn": "0.5.0",
     "lucide-react": "1.61.0",
