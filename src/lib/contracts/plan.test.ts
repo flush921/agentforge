@@ -1,0 +1,117 @@
+import { describe, expect, expectTypeOf, it } from 'vitest'
+import {
+  complexityAssessmentSchema,
+  dimScoreSchema,
+  levelDecisionSchema,
+  planNodeSchema,
+  planSchema,
+  type DimScore,
+} from './plan'
+
+const validAssessment = {
+  dims: { subtasks: 1, tools: 1, parallel: 1, rigor: 1, length: 1 },
+  rationale: '需要适度拆解任务',
+  source: 'llm',
+}
+const validDecision = { rawScore: 5, adjustment: 0, score: 5, level: 2, downgraded: false }
+const validNode = {
+  id: 'answer',
+  role: 'specialist',
+  title: '直接回答',
+  instruction: '直接回答用户的任务',
+  dependsOn: [],
+  tools: [],
+}
+const validPlan = { level: 0, strategy: '直接回答', nodes: [validNode], outputNodeId: 'answer' }
+
+type SchemaCase = {
+  name: string
+  schema: { safeParse: (value: unknown) => { success: boolean } }
+  valid: unknown
+  invalid: unknown[]
+}
+
+const cases: SchemaCase[] = [
+  { name: 'dimScoreSchema', schema: dimScoreSchema, valid: 2, invalid: [3, -1, '2'] },
+  {
+    name: 'complexityAssessmentSchema',
+    schema: complexityAssessmentSchema,
+    valid: validAssessment,
+    invalid: [
+      { ...validAssessment, rationale: 'x'.repeat(81) },
+      { ...validAssessment, extra: true },
+      { ...validAssessment, source: 'other' },
+      { ...validAssessment, dims: { ...validAssessment.dims, tools: 3 } },
+    ],
+  },
+  {
+    name: 'levelDecisionSchema',
+    schema: levelDecisionSchema,
+    valid: validDecision,
+    invalid: [
+      { ...validDecision, rawScore: 11 },
+      { ...validDecision, extra: true },
+      { ...validDecision, level: 5 },
+      { ...validDecision, adjustment: -3 },
+    ],
+  },
+  {
+    name: 'planNodeSchema',
+    schema: planNodeSchema,
+    valid: validNode,
+    invalid: [
+      { ...validNode, title: 'x'.repeat(17) },
+      { ...validNode, extra: true },
+      { ...validNode, role: 'admin' },
+      { ...validNode, dependsOn: ['research', 'research'] },
+      { ...validNode, tools: ['web_search', 'web_search'] },
+    ],
+  },
+  {
+    name: 'planSchema',
+    schema: planSchema,
+    valid: validPlan,
+    invalid: [
+      { ...validPlan, strategy: 'x'.repeat(121) },
+      { ...validPlan, extra: true },
+      { ...validPlan, level: 5 },
+      { ...validPlan, nodes: [] },
+    ],
+  },
+]
+
+describe('plan schemas', () => {
+  for (const testCase of cases) {
+    describe(testCase.name, () => {
+      it('接受合法样例', () => {
+        expect(testCase.schema.safeParse(testCase.valid).success).toBe(true)
+      })
+
+      testCase.invalid.forEach((value, index) => {
+        it(`拒绝非法样例 ${index + 1}`, () => {
+          expect(testCase.schema.safeParse(value).success).toBe(false)
+        })
+      })
+    })
+  }
+
+  it('DimScore 推导为字面量联合', () => {
+    expectTypeOf<DimScore>().toEqualTypeOf<0 | 1 | 2>()
+  })
+
+  it('reviewer 缺少 reviewTarget 时拒绝', () => {
+    expect(planNodeSchema.safeParse({ ...validNode, role: 'reviewer' }).success).toBe(false)
+  })
+
+  it('非 reviewer 带 reviewTarget 时拒绝', () => {
+    expect(planNodeSchema.safeParse({ ...validNode, reviewTarget: 'answer' }).success).toBe(false)
+  })
+
+  it('trim 生效', () => {
+    expect(planNodeSchema.parse({ ...validNode, title: '  名字  ' }).title).toBe('名字')
+  })
+
+  it('全空白字符串不合法', () => {
+    expect(planNodeSchema.safeParse({ ...validNode, title: '   ' }).success).toBe(false)
+  })
+})
