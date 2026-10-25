@@ -6,6 +6,7 @@
 
 @theme inline {
   --color-background: var(--background);
+  --color-brand: var(--brand);
   --color-foreground: var(--foreground);
   --color-panel: var(--panel);
   --color-text-primary: var(--text-primary);
@@ -63,7 +64,8 @@
   --border: #24313b;
   --text-primary: #edf6f7;
   --text-secondary: #9aabb4;
-  --accent: #22d3ee;
+  --brand: #22d3ee;
+  --accent: #1a2730;
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #fb7185;
@@ -71,17 +73,17 @@
   --card-foreground: var(--text-primary);
   --popover: var(--panel);
   --popover-foreground: var(--text-primary);
-  --primary: var(--accent);
+  --primary: var(--brand);
   --primary-foreground: #06232b;
   --secondary: #1a2730;
   --secondary-foreground: var(--text-primary);
   --muted: #1a2730;
   --muted-foreground: var(--text-secondary);
-  --accent-foreground: #06232b;
+  --accent-foreground: var(--text-primary);
   --destructive: var(--danger);
   --input: var(--border);
-  --ring: var(--accent);
-  --chart-1: #22d3ee;
+  --ring: var(--brand);
+  --chart-1: var(--brand);
   --chart-2: #34d399;
   --chart-3: #fbbf24;
   --chart-4: #a78bfa;
@@ -89,12 +91,12 @@
   --radius: 0.625rem;
   --sidebar: #0c141b;
   --sidebar-foreground: var(--text-primary);
-  --sidebar-primary: var(--accent);
+  --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: #06232b;
   --sidebar-accent: #1a2730;
   --sidebar-accent-foreground: var(--text-primary);
   --sidebar-border: var(--border);
-  --sidebar-ring: var(--accent);
+  --sidebar-ring: var(--brand);
 }
 
 @layer base {
