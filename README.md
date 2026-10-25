@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgentForge
 
-## Getting Started
+## 项目介绍
 
-First, run the development server:
+一句话生成你的专属 AI 助手。当前仅包含工程基线，业务功能待补充。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 技术架构
+
+基于 Next.js App Router、React 和 TypeScript。整体技术架构与模块说明待补充。
+
+## 目录结构
+
+```text
+src/
+  app/         页面与 Route Handlers
+  components/  界面组件
+  lib/         前后端共享纯逻辑
+  server/      仅服务端代码
+  stores/      客户端状态
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 本地运行
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. 安装依赖：`npm install`。
+2. 复制 `.env.example` 为 `.env.local`，按需填写配置；`.env.local` 不得提交到 Git。
+3. 启动开发服务器：`npm run dev`。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+默认使用 `LLM_MODE=mock`，无需模型密钥。切换到 live 模式时，在 `.env.local` 中设置 `LLM_MODE=live`，并填写非空的 `DEEPSEEK_API_KEY`；`DEEPSEEK_MODEL` 默认为 `deepseek-chat`。
 
-## Learn More
+## 脚本说明
 
-To learn more about Next.js, take a look at the following resources:
+| 命令                   | 用途                                           |
+| :--------------------- | :--------------------------------------------- |
+| `npm run dev`          | 启动开发服务器                                 |
+| `npm run build`        | 构建生产版本                                   |
+| `npm run start`        | 启动生产服务器                                 |
+| `npm run lint`         | 运行 ESLint                                    |
+| `npm run typecheck`    | 运行 TypeScript 类型检查                       |
+| `npm run test`         | 运行单元测试                                   |
+| `npm run test:watch`   | 以监听模式运行单元测试                         |
+| `npm run format`       | 格式化代码                                     |
+| `npm run format:check` | 检查代码格式                                   |
+| `npm run check`        | 依次运行 lint、typecheck、test 和 format:check |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 团队信息
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+待补充。
