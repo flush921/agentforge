@@ -48,6 +48,7 @@ export const agentStepRequestSchema = z
     assistant: assistantSpecSchema,
     task: taskSchema,
     node: planNodeSchema,
+    isFinal: z.boolean(),
     upstream: z
       .array(
         z.strictObject({

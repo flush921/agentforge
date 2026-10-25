@@ -29,7 +29,7 @@ const l0Assessment: ComplexityAssessment = {
   rationale: '简单寒暄，直接回答',
   source: 'rule',
 }
-const l0Plan = buildStaticPlan(0, { capabilities: [] })
+const l0Plan = buildStaticPlan(0, [])
 const l0Text = ['你好！', '很高兴', '见到你。']
 const l0Output = l0Text.join('')
 const l0Usage: Usage = { inputTokens: 12, outputTokens: 8 }

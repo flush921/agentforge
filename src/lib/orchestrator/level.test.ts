@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Capability, Level } from '../contracts/common'
+import type { Level } from '../contracts/common'
 import type { ComplexityAssessment } from '../contracts/plan'
 import { buildStaticPlan, decideLevel, ruleAssess } from './level'
 import { validatePlan } from './validate-plan'
@@ -101,31 +101,30 @@ describe('ruleAssess', () => {
 
 describe('buildStaticPlan', () => {
   it('L0 计划通过 validatePlan', () => {
-    const plan = buildStaticPlan(0, { capabilities: [] })
+    const plan = buildStaticPlan(0, [])
     expect(validatePlan(plan, { level: 0, allowedTools: [] })).toEqual([])
   })
 
   it('L1 计划通过 validatePlan', () => {
-    const plan = buildStaticPlan(1, { capabilities: ['web_search'] })
-    expect(validatePlan(plan, { level: 1, allowedTools: ['web_search'] })).toEqual([])
+    const plan = buildStaticPlan(1, ['datetime'])
+    expect(validatePlan(plan, { level: 1, allowedTools: ['datetime'] })).toEqual([])
   })
 
   it('L1 在无工具时退回 L0', () => {
-    const plan = buildStaticPlan(1, { capabilities: ['image_input'] })
+    const plan = buildStaticPlan(1, [])
     expect(plan.level).toBe(0)
     expect(validatePlan(plan, { level: 0, allowedTools: [] })).toEqual([])
   })
 
-  it('工具超过 4 个时只取前 4 个', () => {
-    const capabilities: Capability[] = [
+  it('工具先去重，再只取前 4 个', () => {
+    const plan = buildStaticPlan(1, [
+      'datetime',
+      'datetime',
       'web_search',
       'calculator',
-      'datetime',
       'chart',
-      'knowledge_base',
-      'image_input',
-    ]
-    const plan = buildStaticPlan(1, { capabilities })
-    expect(plan.nodes[0]?.tools).toEqual(['web_search', 'calculator', 'datetime', 'chart'])
+      'kb_search',
+    ])
+    expect(plan.nodes[0]?.tools).toEqual(['datetime', 'web_search', 'calculator', 'chart'])
   })
 })

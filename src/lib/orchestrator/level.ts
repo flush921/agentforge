@@ -1,4 +1,4 @@
-import { toolsForCapabilities, type Capability, type Level } from '../contracts/common'
+import type { Level, ToolName } from '../contracts/common'
 import type { ComplexityAssessment, LevelDecision, Plan } from '../contracts/plan'
 
 export const LEVELS = {
@@ -93,10 +93,10 @@ export function decideLevel(
   return { rawScore, adjustment, score, level, downgraded }
 }
 
-export function buildStaticPlan(level: 0 | 1, assistant: { capabilities: Capability[] }): Plan {
+export function buildStaticPlan(level: 0 | 1, tools: ToolName[]): Plan {
   if (level === 1) {
-    const tools = toolsForCapabilities(assistant.capabilities).slice(0, 4)
-    if (tools.length > 0) {
+    const selectedTools = [...new Set(tools)].slice(0, 4)
+    if (selectedTools.length > 0) {
       return {
         level: 1,
         strategy: '需要外部信息或计算，由一个 Agent 调用工具完成',
@@ -107,7 +107,7 @@ export function buildStaticPlan(level: 0 | 1, assistant: { capabilities: Capabil
             title: '工具助手',
             instruction: '先用可用工具获取必要的信息或结果，再回答用户的任务',
             dependsOn: [],
-            tools,
+            tools: selectedTools,
           },
         ],
         outputNodeId: 'answer',

@@ -50,6 +50,7 @@ const validStepRequest = {
   assistant: validAssistant,
   task: '分析学习任务',
   node: validNode,
+  isFinal: true,
   upstream: [{ nodeId: 'research', title: '调研', role: 'researcher', output: '结果' }],
 }
 
@@ -135,6 +136,7 @@ const cases: SchemaCase[] = [
       { ...validStepRequest, revision: { round: 3, feedback: '修改', previousOutput: '' } },
       { ...validStepRequest, extra: true },
       { ...validStepRequest, node: { ...validNode, role: 'other' } },
+      { ...validStepRequest, isFinal: undefined },
       {
         ...validStepRequest,
         upstream: [{ nodeId: 'Invalid ID', title: '调研', role: 'researcher', output: '结果' }],
