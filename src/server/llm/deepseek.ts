@@ -87,23 +87,37 @@ export function createDeepSeekClient(env: Env, model?: LanguageModel): LlmClient
           case 'text-delta':
             yield { type: 'text', delta: part.text }
             break
-          case 'tool-call':
+          case 'tool-call': {
+            const tool = toolNameSchema.safeParse(part.toolName)
+            if (!tool.success) {
+              break
+            }
             yield {
               type: 'tool_call',
               callId: part.toolCallId,
-              tool: toolNameSchema.parse(part.toolName),
+              tool: tool.data,
               input: part.input,
             }
             break
-          case 'tool-result':
+          }
+          case 'tool-result': {
+            const tool = toolNameSchema.safeParse(part.toolName)
+            if (!tool.success) {
+              break
+            }
             yield {
               type: 'tool_result',
               callId: part.toolCallId,
               ok: true,
-              summary: summarizeToolResult(toolNameSchema.parse(part.toolName), part.output),
+              summary: summarizeToolResult(tool.data, part.output),
             }
             break
-          case 'tool-error':
+          }
+          case 'tool-error': {
+            const tool = toolNameSchema.safeParse(part.toolName)
+            if (!tool.success) {
+              break
+            }
             yield {
               type: 'tool_result',
               callId: part.toolCallId,
@@ -111,6 +125,7 @@ export function createDeepSeekClient(env: Env, model?: LanguageModel): LlmClient
               summary: '工具执行失败',
             }
             break
+          }
           case 'finish':
             yield { type: 'finish', usage: mapUsage(part.totalUsage) }
             break
