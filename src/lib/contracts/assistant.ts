@@ -34,7 +34,10 @@ export const assistantSpecSchema = z.strictObject({
   ...assistantDraftSchema.shape,
   id: z.string().trim().min(1).max(64),
   schemaVersion: z.literal(1),
-  createdAt: z.string().trim().datetime({ offset: true }),
+  createdAt: z
+    .string()
+    .trim()
+    .pipe(z.iso.datetime({ offset: true })),
   sourcePrompt: z.string().trim().min(1).max(300),
 })
 

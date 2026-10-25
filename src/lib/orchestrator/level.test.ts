@@ -84,7 +84,7 @@ describe('decideLevel', () => {
 })
 
 describe('ruleAssess', () => {
-  it.each(['你好', '谢谢！', 'Hi', '  晚安。  '])('命中整句寒暄：%s', (task) => {
+  it.each(['你好', '谢谢！', 'Hi', '  晚安。  ', '你好~', '谢谢😊'])('命中整句寒暄：%s', (task) => {
     const result = ruleAssess(task)
     expect(result).not.toBeNull()
     expect(result).toMatchObject({

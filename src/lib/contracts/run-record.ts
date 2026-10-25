@@ -16,7 +16,10 @@ export const runRecordSchema = z.strictObject({
   runId: z.string().trim().min(1),
   assistantId: z.string().trim().min(1),
   task: z.string().trim().min(1).max(4000),
-  createdAt: z.string().trim().datetime({ offset: true }),
+  createdAt: z
+    .string()
+    .trim()
+    .pipe(z.iso.datetime({ offset: true })),
   status: runStatusSchema,
   level: levelSchema.optional(),
   usage: usageSchema,

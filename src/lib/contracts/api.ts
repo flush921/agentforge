@@ -1,9 +1,14 @@
 import { z } from 'zod'
-import { agentRoleSchema, apiErrorSchema, toolNameSchema, usageSchema } from './common'
+import {
+  agentRoleSchema,
+  apiErrorSchema,
+  requiredUnknownSchema,
+  toolNameSchema,
+  usageSchema,
+} from './common'
 import { assistantDraftSchema, assistantSpecSchema } from './assistant'
-import { complexityAssessmentSchema, planNodeSchema, planSchema } from './plan'
+import { complexityAssessmentSchema, nodeIdSchema, planNodeSchema, planSchema } from './plan'
 
-const requiredUnknownSchema = z.custom<unknown>((value) => value !== undefined, '字段必填')
 const taskSchema = z.string().trim().min(1).max(4000)
 
 export const healthResponseSchema = z.strictObject({
@@ -46,7 +51,7 @@ export const agentStepRequestSchema = z
     upstream: z
       .array(
         z.strictObject({
-          nodeId: z.string().trim().min(1).max(32),
+          nodeId: nodeIdSchema,
           title: z.string().trim().min(1).max(16),
           role: agentRoleSchema,
           output: z.string().trim().max(6000),

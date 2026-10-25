@@ -46,7 +46,7 @@ function clamp(value: number, min: number, max: number): number {
 export function ruleAssess(task: string): ComplexityAssessment | null {
   const normalized = task
     .trim()
-    .replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, '')
+    .replace(/^[\s\p{P}\p{S}]+|[\s\p{P}\p{S}]+$/gu, '')
     .toLowerCase()
 
   // 只做整句匹配，避免把「翻译 hello」这类真实任务误判为寒暄。

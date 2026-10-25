@@ -1,15 +1,19 @@
 import { z } from 'zod'
-import { apiErrorSchema, toolNameSchema, usageSchema } from './common'
-import { complexityAssessmentSchema, levelDecisionSchema, planNodeSchema, planSchema } from './plan'
-import { levelSchema } from './common'
+import {
+  apiErrorSchema,
+  levelSchema,
+  requiredUnknownSchema,
+  toolNameSchema,
+  usageSchema,
+} from './common'
+import {
+  complexityAssessmentSchema,
+  levelDecisionSchema,
+  nodeIdSchema,
+  planNodeSchema,
+  planSchema,
+} from './plan'
 
-const requiredUnknownSchema = z.custom<unknown>((value) => value !== undefined, '字段必填')
-const nodeReferenceSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(32)
-  .regex(/^[a-z][a-z0-9_]{0,31}$/, '节点 id 格式不正确')
 const eventEnvelope = {
   seq: z.number().int().nonnegative(),
   t: z.number().int().nonnegative(),
@@ -49,57 +53,57 @@ export const runEventSchema = z.discriminatedUnion('type', [
     type: z.literal('node.added'),
     node: planNodeSchema,
     reason: z.enum(['revision', 'fallback']),
-    revisionOf: nodeReferenceSchema.optional(),
+    revisionOf: nodeIdSchema.optional(),
   }),
   event({
     type: z.literal('node.started'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     attempt: z.number().int().min(1),
   }),
   event({
     type: z.literal('node.reasoning'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     delta: z.string(),
   }),
   event({
     type: z.literal('node.text'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     delta: z.string(),
   }),
   event({
     type: z.literal('node.tool_call'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     callId: z.string().trim().min(1),
     tool: toolNameSchema,
     input: requiredUnknownSchema,
   }),
   event({
     type: z.literal('node.tool_result'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     callId: z.string().trim().min(1),
     ok: z.boolean(),
     summary: z.string(),
   }),
   event({
     type: z.literal('node.review'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     verdict: z.enum(['pass', 'revise']),
     issues: z.array(z.string().trim().min(1)),
   }),
   event({
     type: z.literal('node.completed'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     output: z.string(),
     usage: usageSchema,
   }),
   event({
     type: z.literal('node.failed'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     error: apiErrorSchema,
   }),
   event({
     type: z.literal('node.skipped'),
-    nodeId: nodeReferenceSchema,
+    nodeId: nodeIdSchema,
     reason: z.string().trim().min(1),
   }),
   event({

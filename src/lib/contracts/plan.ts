@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { agentRoleSchema, levelSchema, toolNameSchema } from './common'
 
-const nodeIdSchema = z
+export const nodeIdSchema = z
   .string()
   .trim()
   .min(1)

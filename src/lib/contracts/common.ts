@@ -54,6 +54,7 @@ export const apiErrorSchema = z.strictObject({
   code: errorCodeSchema,
   message: z.string().trim().min(1).max(500),
 })
+export const requiredUnknownSchema = z.custom<unknown>((value) => value !== undefined, '字段必填')
 
 export type Direction = z.infer<typeof directionSchema>
 export type Capability = z.infer<typeof capabilitySchema>

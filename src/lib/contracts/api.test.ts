@@ -137,6 +137,10 @@ const cases: SchemaCase[] = [
       { ...validStepRequest, node: { ...validNode, role: 'other' } },
       {
         ...validStepRequest,
+        upstream: [{ nodeId: 'Invalid ID', title: '调研', role: 'researcher', output: '结果' }],
+      },
+      {
+        ...validStepRequest,
         revision: { round: 1, feedback: '修改', previousOutput: 'x'.repeat(6001) },
       },
     ],
