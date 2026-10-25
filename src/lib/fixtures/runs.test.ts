@@ -53,7 +53,7 @@ describe('运行夹具', () => {
     const completed = sampleRunL4.find((event) => event.type === 'run.completed')
 
     expect(sampleRunL4.length).toBeGreaterThanOrEqual(60)
-    expect(completed).toMatchObject({ durationMs: 42000, t: 42000 })
+    expect(completed).toMatchObject({ durationMs: 40000, t: 40000 })
   })
 
   it('sampleRunL4 的任务和七节点文本流符合演示要求', () => {
@@ -113,5 +113,51 @@ describe('运行夹具', () => {
     const completed = sampleRunL4.find((event) => event.type === 'run.completed')
 
     expect(completed).toMatchObject({ usage: total })
+  })
+
+  it.each(cases)('$name 同一节点同一 attempt 的相邻事件不超过 3000ms', ({ events }) => {
+    const currentAttempts = new Map<string, number>()
+    const timelines = new Map<string, number[]>()
+
+    for (const event of events) {
+      if (event.type === 'node.started') {
+        currentAttempts.set(event.nodeId, event.attempt)
+        timelines.set(`${event.nodeId}:${event.attempt}`, [event.t])
+        continue
+      }
+      if (!('nodeId' in event)) {
+        continue
+      }
+
+      const attempt = currentAttempts.get(event.nodeId)
+      if (attempt === undefined) {
+        continue
+      }
+      const key = `${event.nodeId}:${attempt}`
+      timelines.set(key, [...(timelines.get(key) ?? []), event.t])
+    }
+
+    for (const [key, times] of timelines) {
+      for (let index = 1; index < times.length; index += 1) {
+        const previous = times[index - 1]
+        const current = times[index]
+        if (previous !== undefined && current !== undefined) {
+          expect(current - previous, key).toBeLessThanOrEqual(3000)
+        }
+      }
+    }
+  })
+
+  it.each(cases)('$name 不存在 node.failed 后同一节点再次 started', ({ events }) => {
+    const failedNodes = new Set<string>()
+
+    for (const event of events) {
+      if (event.type === 'node.failed') {
+        failedNodes.add(event.nodeId)
+      }
+      if (event.type === 'node.started') {
+        expect(failedNodes.has(event.nodeId)).toBe(false)
+      }
+    }
   })
 })
