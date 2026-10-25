@@ -37,6 +37,21 @@ function updateNode(
   }
 }
 
+function closeOpenNodes(
+  nodes: Record<string, NodeState>,
+  t: number,
+  reason: string,
+): Record<string, NodeState> {
+  return Object.fromEntries(
+    Object.entries(nodes).map(([id, node]) => [
+      id,
+      node.status === 'pending' || node.status === 'running'
+        ? { ...node, status: 'skipped', skipReason: reason, endedAt: t }
+        : node,
+    ]),
+  )
+}
+
 export function initialRunState(): RunState {
   return {
     runId: null,
@@ -68,6 +83,11 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
   }
 
   if (state.runId === null) {
+    return state
+  }
+
+  // 迟到的网络事件不能把已经结束的运行重新激活。
+  if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
     return state
   }
 
@@ -114,7 +134,9 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         return state
       }
 
-      const becomesOutput = event.reason === 'fallback' || event.revisionOf === state.outputNodeId
+      const becomesOutput =
+        event.reason === 'fallback' ||
+        (event.revisionOf !== undefined && event.revisionOf === state.outputNodeId)
       return {
         ...state,
         outputNodeId: becomesOutput ? event.node.id : state.outputNodeId,
@@ -247,6 +269,7 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         degraded: event.degraded,
         durationMs: event.durationMs,
         usage: event.usage,
+        nodes: closeOpenNodes(state.nodes, event.t, '未执行'),
         lastT: nextT(state, event.t),
       }
     case 'run.failed':
@@ -254,20 +277,16 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         ...state,
         status: 'failed',
         error: event.error,
+        nodes: closeOpenNodes(state.nodes, event.t, '运行失败'),
         lastT: nextT(state, event.t),
       }
-    case 'run.cancelled': {
-      const nodes: Record<string, NodeState> = Object.fromEntries(
-        Object.entries(state.nodes).map(([id, node]) => [
-          id,
-          node.status === 'pending' || node.status === 'running'
-            ? { ...node, status: 'skipped', skipReason: '已取消', endedAt: event.t }
-            : node,
-        ]),
-      )
-
-      return { ...state, status: 'cancelled', nodes, lastT: nextT(state, event.t) }
-    }
+    case 'run.cancelled':
+      return {
+        ...state,
+        status: 'cancelled',
+        nodes: closeOpenNodes(state.nodes, event.t, '已取消'),
+        lastT: nextT(state, event.t),
+      }
   }
 }
 

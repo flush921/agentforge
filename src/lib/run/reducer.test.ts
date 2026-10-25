@@ -344,3 +344,134 @@ describe('applyEvent 其余状态规则', () => {
     expect(next.nodes.answer?.startedAt).toBe(5)
   })
 })
+
+describe('T02 review 回归', () => {
+  function terminalState(status: 'completed' | 'failed' | 'cancelled'): RunState {
+    if (status === 'completed') {
+      return reduceEvents(sampleRunL0)
+    }
+
+    const event: RunEvent =
+      status === 'failed'
+        ? {
+            seq: 2,
+            t: 20,
+            type: 'run.failed',
+            error: { code: 'internal', message: '运行失败' },
+          }
+        : { seq: 2, t: 20, type: 'run.cancelled' }
+    return applyEvent(plannedState(validPlans[2]), event)
+  }
+
+  function lateEvents(state: RunState): RunEvent[] {
+    const nodeId = state.nodeOrder[0]
+    if (!nodeId) {
+      throw new Error('测试状态缺少节点')
+    }
+
+    return [
+      { seq: 90, t: 900, type: 'node.started', nodeId, attempt: 1 },
+      { seq: 91, t: 901, type: 'node.text', nodeId, delta: '迟到文本' },
+      {
+        seq: 92,
+        t: 902,
+        type: 'node.added',
+        node: { ...nodeAt(validPlans[0], 0), id: 'late_node' },
+        reason: 'fallback',
+      },
+    ]
+  }
+
+  it.each(['completed', 'failed', 'cancelled'] as const)(
+    '%s 终态锁定所有迟到事件并返回原引用',
+    (status) => {
+      const state = terminalState(status)
+      for (const event of lateEvents(state)) {
+        expect(applyEvent(state, event)).toBe(state)
+      }
+    },
+  )
+
+  it('run.completed 将未完成节点以未执行收尾', () => {
+    let state = plannedState(validPlans[2])
+    state = applyEvent(state, {
+      seq: 2,
+      t: 20,
+      type: 'node.started',
+      nodeId: 'research',
+      attempt: 1,
+    })
+    state = applyEvent(state, {
+      seq: 3,
+      t: 30,
+      type: 'node.completed',
+      nodeId: 'research',
+      output: '调研结果',
+      usage: { inputTokens: 10, outputTokens: 20 },
+    })
+    state = applyEvent(state, {
+      seq: 4,
+      t: 40,
+      type: 'node.started',
+      nodeId: 'write',
+      attempt: 1,
+    })
+    state = applyEvent(state, {
+      seq: 5,
+      t: 50,
+      type: 'run.completed',
+      output: '提前收尾',
+      degraded: true,
+      usage: { inputTokens: 10, outputTokens: 20 },
+      durationMs: 50,
+    })
+
+    expect(state.nodes.research?.status).toBe('completed')
+    for (const id of ['write', 'polish']) {
+      expect(state.nodes[id]).toMatchObject({
+        status: 'skipped',
+        skipReason: '未执行',
+        endedAt: 50,
+      })
+    }
+  })
+
+  it('run.failed 将 pending 和 running 节点以运行失败收尾', () => {
+    let state = plannedState(validPlans[2])
+    state = applyEvent(state, {
+      seq: 2,
+      t: 20,
+      type: 'node.started',
+      nodeId: 'research',
+      attempt: 1,
+    })
+    state = applyEvent(state, {
+      seq: 3,
+      t: 30,
+      type: 'run.failed',
+      error: { code: 'internal', message: '运行失败' },
+    })
+
+    for (const id of ['research', 'write', 'polish']) {
+      expect(state.nodes[id]).toMatchObject({
+        status: 'skipped',
+        skipReason: '运行失败',
+        endedAt: 30,
+      })
+    }
+  })
+
+  it('没有 revisionOf 时不会把未定义的最终节点覆盖掉', () => {
+    const state = reduceEvents([startEvent()])
+    const next = applyEvent(state, {
+      seq: 1,
+      t: 10,
+      type: 'node.added',
+      node: { ...nodeAt(validPlans[4], 4), id: 'early_reviewer' },
+      reason: 'revision',
+    })
+
+    expect(next.outputNodeId).toBeUndefined()
+    expect(next.nodes.early_reviewer?.dynamic).toBe(true)
+  })
+})
