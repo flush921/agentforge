@@ -6,7 +6,7 @@ describe('parseEnv', () => {
     const env = parseEnv({})
 
     expect(env.LLM_MODE).toBe('mock')
-    expect(env.DEEPSEEK_MODEL).toBe('deepseek-chat')
+    expect(env.DEEPSEEK_MODEL).toBe('deepseek-v4-flash')
     expect(env.DEEPSEEK_API_KEY).toBeUndefined()
     expect(env.ACCESS_CODE).toBeUndefined()
   })

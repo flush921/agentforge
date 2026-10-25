@@ -4,7 +4,7 @@ const envSchema = z
   .object({
     LLM_MODE: z.enum(['mock', 'live']).default('mock'),
     DEEPSEEK_API_KEY: z.string().optional(),
-    DEEPSEEK_MODEL: z.string().default('deepseek-chat'),
+    DEEPSEEK_MODEL: z.string().default('deepseek-v4-flash'),
     ACCESS_CODE: z
       .string()
       .optional()
