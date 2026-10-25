@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { assistantDraftSchema } from '@/lib/contracts/assistant'
+import { decideLevel } from '@/lib/orchestrator/level'
+import { assessHeuristic } from './assess-heuristic'
 import { MOCK_ASSISTANTS, selectAssistantDraft } from './assistants'
 
 describe('mock assistants', () => {
@@ -20,5 +22,18 @@ describe('mock assistants', () => {
   it('健康模板包含免责声明和拒答主题', () => {
     expect(MOCK_ASSISTANTS.health.guardrails.disclaimer).toBeDefined()
     expect(MOCK_ASSISTANTS.health.guardrails.refuseTopics.length).toBeGreaterThan(0)
+  })
+
+  it.each([
+    MOCK_ASSISTANTS.study,
+    MOCK_ASSISTANTS.health,
+    MOCK_ASSISTANTS.data,
+    MOCK_ASSISTANTS.coding,
+  ])('$name 的 starters 由易到难，最后一个可演示 L3/L4', (draft) => {
+    const levels = draft.starters.map(
+      (task) => decideLevel(assessHeuristic(task).dims, 0.5, true).level,
+    )
+    expect(levels[0]).toBeLessThanOrEqual(levels.at(-1) ?? 0)
+    expect(levels.at(-1)).toBeGreaterThanOrEqual(3)
   })
 })

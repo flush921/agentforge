@@ -2,28 +2,55 @@ import 'server-only'
 
 import type { ComplexityAssessment, DimScore } from '@/lib/contracts/plan'
 
-const researchWords = ['调研', '对比', '分析', '报告', '方案', '评估']
-const toolWords = ['最新', '今天', '现在', '查一下', '多少天', '计算']
-const parallelWords = ['分别', '几个', '多个', '对比', '各']
+const dimensionWords = {
+  subtasks: ['调研', '对比', '比较', '分析', '评估', '方案', '规划', '计划', '总结', '并'],
+  tools: [
+    '今天',
+    '现在',
+    '几点',
+    '星期',
+    '多少天',
+    '日期',
+    '最新',
+    '实时',
+    '现状',
+    '查一下',
+    '搜索',
+    '计算',
+  ],
+  parallel: ['分别', '各', '多个', '几个', '对比', '比较', '多方面', '调研'],
+  rigor: ['数据', '报告', '分析', '评估', '建议', '严谨', '准确', '方案'],
+  length: ['报告', '方案', '文章', '详细', '完整', '计划'],
+} as const
+
+function matchCount(task: string, words: readonly string[]): number {
+  return words.filter((word) => task.includes(word)).length
+}
+
+function score(count: number): DimScore {
+  return Math.min(2, count) as DimScore
+}
 
 export function assessHeuristic(task: string): Omit<ComplexityAssessment, 'source'> {
   const normalized = task.trim()
-  const researchMatches = researchWords.filter((word) => normalized.includes(word)).length
-  const researchScore = Math.min(2, researchMatches) as DimScore
-  const length: DimScore = normalized.length >= 80 ? 2 : normalized.length >= 40 ? 1 : 0
-  const tools: DimScore = toolWords.some((word) => normalized.includes(word)) ? 1 : 0
-  const parallel: DimScore = parallelWords.some((word) => normalized.includes(word)) ? 1 : 0
+  const subtaskMatches = matchCount(normalized, dimensionWords.subtasks)
+  const parallelBonus = /[两二三四五六七八九十\d]+\s*(个|款|所|家|种|项|方面)/.test(normalized)
+    ? 1
+    : 0
+  const lengthBonus = normalized.length >= 30 ? 1 : 0
+  const tools = score(matchCount(normalized, dimensionWords.tools))
+  const length = score(matchCount(normalized, dimensionWords.length) + lengthBonus)
 
   return {
     dims: {
-      subtasks: researchScore,
+      subtasks: score(subtaskMatches),
       tools,
-      parallel,
-      rigor: researchScore,
+      parallel: score(matchCount(normalized, dimensionWords.parallel) + parallelBonus),
+      rigor: score(matchCount(normalized, dimensionWords.rigor)),
       length,
     },
     rationale:
-      researchMatches === 0 && length === 0 && tools === 0
+      subtaskMatches === 0 && length === 0 && tools === 0
         ? '任务较直接，无需复杂协作'
         : '根据任务拆解、工具需求与产出规模估算',
   }

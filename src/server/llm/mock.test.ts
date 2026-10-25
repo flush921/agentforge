@@ -71,7 +71,7 @@ describe('createMockClient', () => {
       makeRequest('assess', built.instructions, built.user),
     )
     expect(JSON.parse(result.text)).toMatchObject({
-      dims: { subtasks: 0, tools: 1, parallel: 0, rigor: 0, length: 0 },
+      dims: { subtasks: 0, tools: 2, parallel: 0, rigor: 0, length: 0 },
     })
   })
 
