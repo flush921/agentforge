@@ -1,15 +1,19 @@
 import 'server-only'
 
-import { toolNameSchema, type ToolName } from '@/lib/contracts/common'
+import { agentRoleSchema, toolNameSchema, type ToolName, type Usage } from '@/lib/contracts/common'
 import { assessHeuristic } from '@/server/mock/assess-heuristic'
 import { selectAssistantDraft } from '@/server/mock/assistants'
 import { createMockPlan } from '@/server/mock/plans'
-import type { LlmClient, LlmJsonRequest, LlmKind } from './types'
+import { buildMockStepContent, type MockStepContentInput } from '@/server/mock/step-content'
+import { ROLE_DESCRIPTIONS } from '@/server/prompts/catalog'
+import { buildToolSet, summarizeToolResult } from '@/server/tools/registry'
+import type { AgentLlmRequest, LlmClient, LlmJsonRequest, LlmKind } from './types'
 
 const MOCK_DELAYS: Record<LlmKind, number> = {
   generate: 600,
   assess: 300,
   plan: 900,
+  review: 300,
 }
 
 let delayOverride: number | undefined
@@ -47,11 +51,11 @@ async function waitForDelay(milliseconds: number, signal: AbortSignal): Promise<
   })
 }
 
-function lastUserContent(req: LlmJsonRequest): string {
+function lastUserContent(req: { messages: Array<{ role: string; content: string }> }): string {
   return req.messages.findLast((message) => message.role === 'user')?.content ?? ''
 }
 
-function readData(content: string, tag: 'request' | 'task'): string {
+function readData(content: string, tag: 'feedback' | 'request' | 'task'): string {
   const match = new RegExp(`<${tag}>\n([\\s\\S]*?)\n</${tag}>`).exec(content)
   return match?.[1]?.replaceAll('<\\/', '</') ?? ''
 }
@@ -78,20 +82,64 @@ function readPlannerTools(instructions: string): ToolName[] {
   return tools
 }
 
+function readWorkerInput(req: AgentLlmRequest): MockStepContentInput {
+  const user = lastUserContent(req)
+  const role =
+    agentRoleSchema.options.find((candidate) => {
+      const label = ROLE_DESCRIPTIONS[candidate].split('：')[0]
+      return req.instructions.includes(`角色是「${label}」`)
+    }) ?? 'specialist'
+  const feedback = readData(user, 'feedback')
+
+  return {
+    role,
+    title: /负责其中一个环节：「([^」]+)」/.exec(req.instructions)?.[1] ?? '任务执行',
+    instruction: /1\. 本环节的任务：([^\n]+)/.exec(req.instructions)?.[1] ?? '完成用户任务',
+    task: readData(user, 'task'),
+    upstreamTitles: [...user.matchAll(/<upstream id="[a-z0-9_]+">\n【([^】]+)】/g)].map(
+      (match) => match[1] ?? '',
+    ),
+    isFinal: req.instructions.includes('你的产出会直接交付给用户'),
+    ...(feedback.length > 0 ? { revision: { feedback } } : {}),
+  }
+}
+
 function responseText(req: LlmJsonRequest): string {
   const user = lastUserContent(req)
 
   if (req.kind === 'generate') {
     return JSON.stringify(selectAssistantDraft(readData(user, 'request')))
   }
-
   if (req.kind === 'assess') {
     return JSON.stringify(assessHeuristic(readData(user, 'task')))
+  }
+  if (req.kind === 'review') {
+    return JSON.stringify(
+      user.includes('<feedback>')
+        ? { verdict: 'pass', issues: [], summary: '上一轮审校意见已落实，交付物可以通过。' }
+        : {
+            verdict: 'revise',
+            issues: ['补充关键结论的数据依据', '精简重复内容并明确行动建议'],
+            summary: '交付物仍需补充依据并优化表达。',
+          },
+    )
   }
 
   return JSON.stringify(
     createMockPlan(readPlannerLevel(req.instructions), readPlannerTools(req.instructions)),
   )
+}
+
+function estimateUsage(
+  instructions: string,
+  messages: Array<{ content: string }>,
+  output: string,
+): Usage {
+  const input = instructions + messages.map((message) => message.content).join('')
+  return {
+    inputTokens: Math.ceil(input.length / 2),
+    outputTokens: Math.ceil(output.length / 2),
+  }
 }
 
 export function createMockClient(): LlmClient {
@@ -102,14 +150,59 @@ export function createMockClient(): LlmClient {
       throwIfAborted(req.signal)
 
       const text = responseText(req)
-      const input = req.instructions + req.messages.map((message) => message.content).join('')
-      return {
-        text,
-        usage: {
-          inputTokens: Math.ceil(input.length / 2),
-          outputTokens: Math.ceil(text.length / 2),
-        },
+      return { text, usage: estimateUsage(req.instructions, req.messages, text) }
+    },
+    async *streamAgent(req) {
+      const content = buildMockStepContent(readWorkerInput(req))
+      const pause = () => waitForDelay(delayOverride ?? 50, req.signal)
+      let generated = ''
+
+      if (req.tools.includes('datetime')) {
+        await pause()
+        yield { type: 'step-start' }
+        const callId = 'mock_datetime_1'
+        const input = { timezone: 'Asia/Shanghai' }
+        await pause()
+        yield { type: 'tool_call', callId, tool: 'datetime', input }
+
+        const datetime = buildToolSet(['datetime']).datetime
+        if (datetime?.execute === undefined) {
+          throw new Error('datetime 工具未注册 execute')
+        }
+        const output = await datetime.execute(input, {
+          toolCallId: callId,
+          messages: [],
+          context: {},
+          abortSignal: req.signal,
+        })
+        await pause()
+        yield {
+          type: 'tool_result',
+          callId,
+          ok: true,
+          summary: summarizeToolResult('datetime', output),
+        }
       }
+
+      await pause()
+      yield { type: 'step-start' }
+
+      if (req.thinking) {
+        for (const reasoning of ['先核对任务目标与材料范围。', '再组织结论并检查依据是否充分。']) {
+          await pause()
+          generated += reasoning
+          yield { type: 'reasoning', delta: reasoning }
+        }
+      }
+
+      for (let offset = 0; offset < content.length; offset += 12) {
+        const delta = content.slice(offset, offset + 12)
+        await pause()
+        generated += delta
+        yield { type: 'text', delta }
+      }
+
+      yield { type: 'finish', usage: estimateUsage(req.instructions, req.messages, generated) }
     },
   }
 }

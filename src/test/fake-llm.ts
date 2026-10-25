@@ -1,9 +1,24 @@
-import type { LlmClient, LlmJsonRequest, LlmJsonResult } from '@/server/llm/types'
+import type {
+  AgentLlmRequest,
+  AgentStreamPart,
+  LlmClient,
+  LlmJsonRequest,
+  LlmJsonResult,
+} from '@/server/llm/types'
 
 type FakeReply = string | Error | LlmJsonResult
+type FakeStream = AgentStreamPart[] | Error
 
-export function fakeLlm(replies: FakeReply[]): { client: LlmClient; requests: LlmJsonRequest[] } {
+export function fakeLlm(
+  replies: FakeReply[],
+  streams: FakeStream[] = [],
+): {
+  client: LlmClient
+  requests: LlmJsonRequest[]
+  streamRequests: AgentLlmRequest[]
+} {
   const requests: LlmJsonRequest[] = []
+  const streamRequests: AgentLlmRequest[] = []
   const client: LlmClient = {
     mode: 'mock',
     async generateJson(req) {
@@ -20,7 +35,20 @@ export function fakeLlm(replies: FakeReply[]): { client: LlmClient; requests: Ll
       }
       return reply
     },
+    async *streamAgent(req) {
+      streamRequests.push({ ...req, messages: req.messages.map((message) => ({ ...message })) })
+      const stream = streams[streamRequests.length - 1]
+      if (stream === undefined) {
+        throw new Error('unexpected_stream_call')
+      }
+      if (stream instanceof Error) {
+        throw stream
+      }
+      for (const part of stream) {
+        yield part
+      }
+    },
   }
 
-  return { client, requests }
+  return { client, requests, streamRequests }
 }
