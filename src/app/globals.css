@@ -125,6 +125,16 @@
   }
 }
 
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-controls-button-background-color: var(--panel);
+  --xy-controls-button-background-color-hover: var(--secondary);
+  --xy-controls-button-color: var(--text-secondary);
+  --xy-controls-button-color-hover: var(--text-primary);
+  --xy-controls-button-border-color: var(--border);
+  --xy-attribution-background-color: transparent;
+}
+
 .canvas-agent-card[data-status='pending'] {
   border-style: dashed;
   opacity: 0.7;
