@@ -19,6 +19,7 @@ exports[`buildPlanPrompt > L2 包含数据区、对应级别规则和工具清�
 
 可用工具：
 - datetime：获取当前日期与时间
+- calculator：精确计算数学表达式
 
 设计原则：
 1. 每个节点只做一件事。instruction 写给执行该节点的 Agent，说清「做什么、产出什么」，不超过 100 字。
@@ -67,6 +68,7 @@ exports[`buildPlanPrompt > L3 包含数据区、对应级别规则和工具清�
 
 可用工具：
 - datetime：获取当前日期与时间
+- calculator：精确计算数学表达式
 
 设计原则：
 1. 每个节点只做一件事。instruction 写给执行该节点的 Agent，说清「做什么、产出什么」，不超过 100 字。
@@ -115,6 +117,7 @@ exports[`buildPlanPrompt > L4 包含数据区、对应级别规则和工具清�
 
 可用工具：
 - datetime：获取当前日期与时间
+- calculator：精确计算数学表达式
 
 设计原则：
 1. 每个节点只做一件事。instruction 写给执行该节点的 Agent，说清「做什么、产出什么」，不超过 100 字。

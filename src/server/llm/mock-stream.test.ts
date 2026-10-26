@@ -76,6 +76,29 @@ describe('mock.streamAgent 与 review', () => {
     expect(parts.at(-1)?.type).toBe('finish')
   })
 
+  it('calculator 先执行真实工具，再在后续 step 输出正文', async () => {
+    const parts = await collect(makeAgentRequest({}, ['calculator']))
+    expect(parts.slice(0, 4).map((part) => part.type)).toEqual([
+      'step-start',
+      'tool_call',
+      'tool_result',
+      'step-start',
+    ])
+    expect(parts[1]).toMatchObject({
+      tool: 'calculator',
+      input: { expression: '(128*3*0.85-40)' },
+    })
+    expect(parts[2]).toMatchObject({
+      ok: true,
+      summary: '(128*3*0.85-40) = 286.4',
+    })
+    const output = parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.delta)
+      .join('')
+    expect(output.startsWith('> 当前为离线演示模式，内容由模板生成。')).toBe(true)
+  })
+
   it('中途取消时立即抛 AbortError', async () => {
     setMockDelayForTests(50)
     const controller = new AbortController()

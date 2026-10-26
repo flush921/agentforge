@@ -33,6 +33,7 @@ describe('assistant labels', () => {
 
   it('只把已实现的能力标为可用', () => {
     expect(isCapabilityAvailable('datetime')).toBe(true)
+    expect(isCapabilityAvailable('calculator')).toBe(true)
     expect(isCapabilityAvailable('web_search')).toBe(false)
     expect(isCapabilityAvailable('image_input')).toBe(false)
   })

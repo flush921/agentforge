@@ -43,6 +43,11 @@ describe('assistantBrief', () => {
     expect(brief).not.toContain(testAssistant.persona)
   })
 
+  it('可用工具包含实际开放的 calculator', () => {
+    const brief = assistantBrief({ ...testAssistant, capabilities: ['datetime', 'calculator'] })
+    expect(brief).toContain('可用工具：calculator、datetime')
+  })
+
   it('无可用工具时写无', () => {
     expect(assistantBrief({ ...testAssistant, capabilities: [] })).toContain('可用工具：无')
     expect(assistantBrief({ ...testAssistant, capabilities: ['web_search'] })).toContain(

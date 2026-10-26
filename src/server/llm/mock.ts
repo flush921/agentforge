@@ -163,6 +163,33 @@ export function createMockClient(): LlmClient {
       const pause = () => waitForDelay(delayOverride ?? 50, req.signal)
       let generated = ''
 
+      if (req.tools.includes('calculator')) {
+        await pause()
+        yield { type: 'step-start' }
+        const callId = 'mock_calculator_1'
+        const input = { expression: '(128*3*0.85-40)' }
+        await pause()
+        yield { type: 'tool_call', callId, tool: 'calculator', input }
+
+        const calculator = buildToolSet(['calculator']).calculator
+        if (calculator?.execute === undefined) {
+          throw new Error('calculator 工具未注册 execute')
+        }
+        const output = await calculator.execute(input, {
+          toolCallId: callId,
+          messages: [],
+          context: {},
+          abortSignal: req.signal,
+        })
+        await pause()
+        yield {
+          type: 'tool_result',
+          callId,
+          ok: true,
+          summary: summarizeToolResult('calculator', output),
+        }
+      }
+
       if (req.tools.includes('datetime')) {
         await pause()
         yield { type: 'step-start' }
