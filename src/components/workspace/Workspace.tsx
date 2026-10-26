@@ -50,6 +50,18 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (phase !== 'awaiting_confirm') return
+    const frame = requestAnimationFrame(() => {
+      const panel = conversationScroll.current
+      panel?.scrollTo({
+        top: panel.scrollHeight,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [mobileTab, phase])
+
   const start = useCallback(
     (nextTask = task, nextIntensity = intensity) => {
       const normalized = nextTask.trim()
