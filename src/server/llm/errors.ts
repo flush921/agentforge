@@ -38,6 +38,28 @@ function constructorName(error: unknown): string {
     : 'unknown'
 }
 
+function relayCode(responseBody: string | undefined): string {
+  if (responseBody === undefined) return 'unknown'
+  try {
+    const parsed: unknown = JSON.parse(responseBody)
+    if (typeof parsed !== 'object' || parsed === null || !('error' in parsed)) return 'unknown'
+    const nested = parsed.error
+    if (typeof nested !== 'object' || nested === null || !('code' in nested)) return 'unknown'
+    const code = nested.code
+    return typeof code === 'string' && /^[a-z_]{1,40}$/.test(code) ? code : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
+function bodyShape(responseBody: string | undefined): 'sse' | 'json' | 'empty' | 'other' {
+  const body = (responseBody ?? '').trimStart()
+  if (body.length === 0) return 'empty'
+  if (body.startsWith('data:')) return 'sse'
+  if (body.startsWith('{')) return 'json'
+  return 'other'
+}
+
 export function toApiError(error: unknown, signal: AbortSignal, route = 'unknown'): MappedApiError {
   if (signal.aborted) {
     return mapped(route, 'cancelled', 499, '请求已取消')
@@ -51,6 +73,7 @@ export function toApiError(error: unknown, signal: AbortSignal, route = 'unknown
 
   if (APICallError.isInstance(unwrapped)) {
     const status = unwrapped.statusCode
+    const responseBody = unwrapped.responseBody
     if (status === 429) {
       return mapped(
         route,
@@ -58,6 +81,30 @@ export function toApiError(error: unknown, signal: AbortSignal, route = 'unknown
         429,
         '请求过于频繁，请稍后重试',
         '上游请求限流（429）',
+        true,
+      )
+    }
+    if (
+      status === 403 &&
+      responseBody !== undefined &&
+      (responseBody.includes('request illegal') || responseBody.includes('account_restricted'))
+    ) {
+      return mapped(
+        route,
+        'upstream_error',
+        502,
+        '模型服务暂时不可用',
+        `上游临时拒绝请求（403 ${relayCode(responseBody)}）`,
+        true,
+      )
+    }
+    if (status !== undefined && status >= 200 && status <= 299) {
+      return mapped(
+        route,
+        'upstream_error',
+        502,
+        '模型服务暂时不可用',
+        `上游响应无法解析（${status}，${bodyShape(responseBody)}）`,
         true,
       )
     }

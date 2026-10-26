@@ -170,13 +170,16 @@ describe('relayFetch', () => {
     vi.restoreAllMocks()
   })
 
-  it('403 带 request illegal 时读取 clone，等待后只重试一次', async () => {
+  it('两类临时 403 最多重试两次，间隔为 600 和 1500ms', async () => {
     vi.useFakeTimers()
+    const timerSpy = vi.spyOn(globalThis, 'setTimeout')
     const first = new Response('request illegal', { status: 403 })
+    const second = new Response('account_restricted', { status: 403 })
     const cloneSpy = vi.spyOn(first, 'clone')
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second)
       .mockResolvedValueOnce(new Response('ok', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -185,12 +188,50 @@ describe('relayFetch', () => {
     const response = await pending
 
     expect(response.status).toBe(200)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(cloneSpy).toHaveBeenCalledTimes(1)
+    expect(timerSpy).toHaveBeenCalledWith(expect.any(Function), 600)
+    expect(timerSpy).toHaveBeenCalledWith(expect.any(Function), 1500)
     await expect(first.text()).resolves.toBe('request illegal')
   })
 
-  it('403 不带 request illegal 时原样返回且不重试', async () => {
+  it('三次都是临时 403 时返回最后一次且不继续重试', async () => {
+    vi.useFakeTimers()
+    const last = new Response('account_restricted', { status: 403 })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('request illegal', { status: 403 }))
+      .mockResolvedValueOnce(new Response('account_restricted', { status: 403 }))
+      .mockResolvedValueOnce(last)
+    vi.stubGlobal('fetch', fetchMock)
+
+    const pending = relayFetch('https://example.invalid/v1/chat/completions')
+    await vi.runAllTimersAsync()
+    const response = await pending
+
+    expect(response).toBe(last)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    await expect(last.text()).resolves.toBe('account_restricted')
+  })
+
+  it('等待重试期间中止时立即抛出 AbortError', async () => {
+    vi.useFakeTimers()
+    const controller = new AbortController()
+    const fetchMock = vi.fn().mockResolvedValue(new Response('account_restricted', { status: 403 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const pending = relayFetch('https://example.invalid/v1/chat/completions', {
+      signal: controller.signal,
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('403 不含临时拒绝标记时原样返回且不重试', async () => {
     const first = new Response('forbidden', { status: 403 })
     const fetchMock = vi.fn().mockResolvedValue(first)
     vi.stubGlobal('fetch', fetchMock)

@@ -21,15 +21,43 @@ function mapUsage(usage: LanguageModelUsage | undefined): Usage {
   }
 }
 
+const RELAY_RETRY_DELAYS = [600, 1500] as const
+
+function abortError(): DOMException {
+  return new DOMException('aborted', 'AbortError')
+}
+
+function waitForRetry(ms: number, signal?: AbortSignal | null): Promise<void> {
+  if (signal === undefined || signal === null) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+  if (signal.aborted) return Promise.reject(abortError())
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', onAbort)
+      reject(abortError())
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 export async function relayFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const response = await fetch(input, init)
-  if (response.status !== 403) return response
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(input, init)
+    if (response.status !== 403) return response
 
-  const body = await response.clone().text()
-  if (!body.includes('request illegal')) return response
+    const body = await response.clone().text()
+    const temporary = body.includes('request illegal') || body.includes('account_restricted')
+    if (!temporary || attempt >= RELAY_RETRY_DELAYS.length) return response
 
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  return fetch(input, init)
+    await waitForRetry(RELAY_RETRY_DELAYS[attempt]!, init?.signal)
+  }
 }
 
 export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {

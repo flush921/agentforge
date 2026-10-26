@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { APICallError, RetryError } from 'ai'
 import { toApiError } from './errors'
 
-function apiError(statusCode?: number, isRetryable = false): APICallError {
+function apiError(statusCode?: number, isRetryable = false, responseBody?: string): APICallError {
   return new APICallError({
     message: '包含请求细节的上游错误',
     url: 'https://example.invalid',
     requestBodyValues: {},
     statusCode,
+    responseBody,
     isRetryable,
   })
 }
@@ -59,6 +60,55 @@ describe('toApiError', () => {
       errors: [apiError(429, true)],
     })
     expect(toApiError(retryError, neverAborted())).toMatchObject({ status: 429, retryable: true })
+  })
+
+  it.each([
+    { body: 'request illegal 响应原文敏感内容', code: 'unknown' },
+    {
+      body: JSON.stringify({
+        error: { code: 'account_restricted', message: '响应原文敏感内容' },
+      }),
+      code: 'account_restricted',
+    },
+    {
+      body: JSON.stringify({
+        error: { code: 'BAD!', message: 'account_restricted 响应原文敏感内容' },
+      }),
+      code: 'unknown',
+    },
+  ])('临时 403 映射为可重试并只记录安全字段', ({ body, code }) => {
+    const result = toApiError(apiError(403, false, body), neverAborted(), '/api/test')
+
+    expect(result).toEqual({
+      error: { code: 'upstream_error', message: '模型服务暂时不可用' },
+      status: 502,
+      retryable: true,
+    })
+    expect(console.error).toHaveBeenCalledWith(
+      `[api] /api/test upstream_error 上游临时拒绝请求（403 ${code}）`,
+    )
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('响应原文敏感内容'))
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('包含请求细节'))
+  })
+
+  it.each([
+    { status: 200, body: 'data: 响应原文敏感内容', shape: 'sse' },
+    { status: 201, body: '{"error":"响应原文敏感内容"}', shape: 'json' },
+    { status: 204, body: '', shape: 'empty' },
+    { status: 299, body: 'plain 响应原文敏感内容', shape: 'other' },
+  ])('2xx 解析失败映射为可重试，bodyShape=$shape', ({ status, body, shape }) => {
+    const result = toApiError(apiError(status, false, body), neverAborted(), '/api/test')
+
+    expect(result).toEqual({
+      error: { code: 'upstream_error', message: '模型服务暂时不可用' },
+      status: 502,
+      retryable: true,
+    })
+    expect(console.error).toHaveBeenCalledWith(
+      `[api] /api/test upstream_error 上游响应无法解析（${status}，${shape}）`,
+    )
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('响应原文敏感内容'))
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('包含请求细节'))
   })
 
   it.each([401, 403])('%s 鉴权失败不可重试，日志带状态码', (status) => {
