@@ -3,7 +3,7 @@ import { Workflow } from 'lucide-react'
 
 export function SiteHeader({ libraryHref = '/#library' }: { libraryHref?: string }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-border/70 bg-background">
       <div className="mx-auto flex h-16 w-full max-w-[1080px] items-center justify-between px-4 sm:px-6">
         <Link
           href="/"
