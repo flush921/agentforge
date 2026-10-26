@@ -13,6 +13,8 @@ import {
   stepEventSchema,
 } from '../contracts/api'
 import type { ApiError } from '../contracts/common'
+import type { Plan } from '../contracts/plan'
+import type { RunState } from '../run/types'
 import { readNdjson } from '../stream/ndjson'
 
 export interface OrchestratorDeps {
@@ -22,6 +24,7 @@ export interface OrchestratorDeps {
   now(): number
   sleep(ms: number, signal: AbortSignal): Promise<void>
   newRunId(): string
+  confirmPlan?(plan: Plan, state: RunState, signal: AbortSignal): Promise<boolean>
 }
 
 interface HttpDepsOptions {

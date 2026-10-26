@@ -13,7 +13,10 @@ export default function Home() {
             按需编排 · 让每一个任务都有合适的团队
           </div>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            一句话，生成你的专属 <span className="text-brand">AI 助手</span>
+            一句话，生成你的
+            <span className="whitespace-nowrap">
+              专属 <span className="text-brand">AI 助手</span>
+            </span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
             它会按任务难度，自动调度 1 到 N 个 Agent 协作完成，并把整个过程画给你看

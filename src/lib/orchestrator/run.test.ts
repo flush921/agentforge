@@ -185,6 +185,101 @@ describe('评估与规划', () => {
   })
 })
 
+describe('执行前确认', () => {
+  it('确认通过后才执行节点', async () => {
+    const { deps, calls } = createFakeDeps({
+      assess: assessmentFor(3),
+      plan: planResponse(3),
+    })
+    let confirmations = 0
+    deps.confirmPlan = async (plan, state) => {
+      confirmations += 1
+      expect(plan.nodes.length).toBeGreaterThan(1)
+      expect(state.status).toBe('running')
+      expect(state.planSource).toBe('planner')
+      expect(Object.values(state.nodes).every((node) => node.status === 'pending')).toBe(true)
+      expect(calls.step).toHaveLength(0)
+      return true
+    }
+
+    const { state } = await execute(deps)
+
+    expect(confirmations).toBe(1)
+    expect(state.status).toBe('completed')
+    expect(calls.step.length).toBeGreaterThan(0)
+  })
+
+  it('拒绝确认时取消运行，所有节点标记已取消且不执行', async () => {
+    const { deps, calls } = createFakeDeps({
+      assess: assessmentFor(3),
+      plan: planResponse(3),
+    })
+    deps.confirmPlan = async () => false
+
+    const { events, state } = await execute(deps)
+
+    expect(state.status).toBe('cancelled')
+    expect(calls.step).toHaveLength(0)
+    expect(events.filter((event) => event.type === 'run.cancelled')).toHaveLength(1)
+    expect(
+      Object.values(state.nodes).every(
+        (node) => node.status === 'skipped' && node.skipReason === '已取消',
+      ),
+    ).toBe(true)
+  })
+
+  it('确认抛出 AbortError 时按取消处理', async () => {
+    const { deps, calls } = createFakeDeps({
+      assess: assessmentFor(3),
+      plan: planResponse(3),
+    })
+    deps.confirmPlan = async () => {
+      throw new DOMException('aborted', 'AbortError')
+    }
+
+    const { state } = await execute(deps)
+
+    expect(state.status).toBe('cancelled')
+    expect(calls.step).toHaveLength(0)
+    expect(Object.values(state.nodes).every((node) => node.status === 'skipped')).toBe(true)
+  })
+
+  it('不提供 confirmPlan 时保持原有执行行为', async () => {
+    const { deps, calls } = createFakeDeps({
+      assess: assessmentFor(3),
+      plan: planResponse(3),
+    })
+
+    const { state } = await execute(deps)
+
+    expect(state.status).toBe('completed')
+    expect(calls.step.length).toBeGreaterThan(0)
+  })
+
+  it('static 和 fallback 计划不请求确认', async () => {
+    const scripts: FakeDepsScript[] = [
+      { assess: assessmentFor(1) },
+      {
+        assess: assessmentFor(3),
+        plan: { plan: null, source: 'fallback', attempts: [] },
+      },
+    ]
+    for (const script of scripts) {
+      const { deps } = createFakeDeps(script)
+      let confirmations = 0
+      deps.confirmPlan = async () => {
+        confirmations += 1
+        return false
+      }
+
+      const { state } = await execute(deps)
+
+      expect(confirmations).toBe(0)
+      expect(state.status).toBe('completed')
+    }
+  })
+})
+
 describe('调度', () => {
   it('10 L3 两个 researcher 并发，analyst 等待两者完成', async () => {
     const gateA = deferred()

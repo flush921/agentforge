@@ -667,6 +667,20 @@ export async function runOrchestration(
     if (isTerminal(ctx)) {
       return ctx.state
     }
+    const pendingPlan = ctx.state.plan
+    const confirmPlan = ctx.deps.confirmPlan
+    if (
+      pendingPlan !== undefined &&
+      ctx.state.planSource === 'planner' &&
+      confirmPlan !== undefined
+    ) {
+      const accepted = await confirmPlan(pendingPlan, ctx.state, ctx.signal)
+      if (!accepted) {
+        cancel(ctx)
+        return ctx.state
+      }
+      throwIfAborted(ctx)
+    }
     await schedule(ctx)
     throwIfAborted(ctx)
     if (isTerminal(ctx)) {
