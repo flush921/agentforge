@@ -22,30 +22,57 @@ const guardedAssistant = {
 }
 
 describe('buildWorkerPrompt', () => {
-  it('final 与非 final 使用不同产出要求', () => {
-    expect(buildWorkerPrompt(makeStepRequest(), []).instructions).toContain('直接交付给用户')
+  it('单独作答不使用团队框架或内部环节措辞', () => {
+    const result = buildWorkerPrompt(makeStepRequest(), [])
+
+    expect(result.instructions).toContain('请直接完成用户的任务')
+    expect(result.instructions).not.toContain('团队')
+    expect(result.instructions).not.toContain('环节')
+    expect(result.user).toContain('请直接回答。')
+    expect(result.user).not.toContain('现在请完成你的环节')
+  })
+
+  it('final 团队节点要求不要描述工作过程和分工', () => {
+    const result = buildWorkerPrompt(makeStepRequest({ upstream }), [])
+    expect(result.instructions).toContain('直接交付给用户')
+    expect(result.instructions).toContain('不要描述你的工作过程、工具调用或团队分工')
     expect(buildWorkerPrompt(makeStepRequest({ isFinal: false }), []).instructions).toContain(
       '交给团队中的下一位成员',
     )
   })
 
-  it('可选工具、返工和拒答条目在不同组合下编号连续', () => {
-    const full = buildWorkerPrompt(makeStepRequest({ assistant: guardedAssistant, revision }), [
-      'datetime',
-    ])
+  it('可选工具、上游、返工和拒答条目在不同组合下编号连续', () => {
+    const full = buildWorkerPrompt(
+      makeStepRequest({ assistant: guardedAssistant, upstream, revision }),
+      ['datetime'],
+    )
     const revisionOnly = buildWorkerPrompt(makeStepRequest({ revision }), [])
     const plain = buildWorkerPrompt(makeStepRequest(), [])
+    const upstreamOnly = buildWorkerPrompt(makeStepRequest({ upstream }), [])
+    const standaloneFull = buildWorkerPrompt(makeStepRequest({ assistant: guardedAssistant }), [
+      'datetime',
+    ])
 
     for (const [result, count] of [
       [full, 7],
-      [revisionOnly, 5],
-      [plain, 4],
+      [revisionOnly, 4],
+      [plain, 3],
+      [upstreamOnly, 4],
+      [standaloneFull, 5],
     ] as const) {
       const numbers = [...result.instructions.matchAll(/^(\d+)\./gm)].map((match) =>
         Number(match[1]),
       )
       expect(numbers).toEqual(Array.from({ length: count }, (_, index) => index + 1))
     }
+  })
+
+  it('团队模式没有上游材料时省略上游规则', () => {
+    const withoutUpstream = buildWorkerPrompt(makeStepRequest({ isFinal: false }), [])
+    const withUpstream = buildWorkerPrompt(makeStepRequest({ isFinal: false, upstream }), [])
+
+    expect(withoutUpstream.instructions).not.toContain('数据区中的上游产出')
+    expect(withUpstream.instructions).toContain('数据区中的上游产出')
   })
 
   it('user 包含上游 id、标题、返工材料和注入声明', () => {

@@ -5,7 +5,7 @@ exports[`buildPlanPrompt > L2 包含数据区、对应级别规则和工具清�
   "instructions": "你是多 Agent 编排规划师。请根据任务和指定的编排级别，设计一张由 Agent 节点组成的有向无环图（DAG）。
 
 本次级别：L2（流水线）
-结构要求：严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。
+结构要求：严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。不要使用 reviewer 角色。
 节点数：2~3 个（含审校节点）
 
 可用角色：
@@ -35,7 +35,7 @@ exports[`buildPlanPrompt > L2 包含数据区、对应级别规则和工具清�
 名称：学习助手
 领域：教育规划
 简介：帮你制定严谨的学习计划
-能力：datetime、web_search
+可用工具：datetime
 </assistant>
 <assessment>
 各维度：subtasks=2, tools=1, parallel=2, rigor=1, length=1；理由：需要多方向调研并形成报告
@@ -52,7 +52,7 @@ exports[`buildPlanPrompt > L3 包含数据区、对应级别规则和工具清�
   "instructions": "你是多 Agent 编排规划师。请根据任务和指定的编排级别，设计一张由 Agent 节点组成的有向无环图（DAG）。
 
 本次级别：L3（并行）
-结构要求：并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。
+结构要求：并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。不要使用 reviewer 角色。
 节点数：3~6 个（含审校节点）
 
 可用角色：
@@ -82,7 +82,7 @@ exports[`buildPlanPrompt > L3 包含数据区、对应级别规则和工具清�
 名称：学习助手
 领域：教育规划
 简介：帮你制定严谨的学习计划
-能力：datetime、web_search
+可用工具：datetime
 </assistant>
 <assessment>
 各维度：subtasks=2, tools=1, parallel=2, rigor=1, length=1；理由：需要多方向调研并形成报告
@@ -129,7 +129,7 @@ exports[`buildPlanPrompt > L4 包含数据区、对应级别规则和工具清�
 名称：学习助手
 领域：教育规划
 简介：帮你制定严谨的学习计划
-能力：datetime、web_search
+可用工具：datetime
 </assistant>
 <assessment>
 各维度：subtasks=2, tools=1, parallel=2, rigor=1, length=1；理由：需要多方向调研并形成报告

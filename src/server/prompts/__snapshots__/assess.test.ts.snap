@@ -24,7 +24,7 @@ rationale 用一句不超过 40 字的中文，向用户说明最主要的判断
 名称：学习助手
 领域：教育规划
 简介：帮你制定严谨的学习计划
-能力：datetime、web_search
+可用工具：datetime
 </assistant>
 <task>
 对比三款笔记软件并给出选购建议

@@ -84,22 +84,28 @@ function readPlannerTools(instructions: string): ToolName[] {
 
 function readWorkerInput(req: AgentLlmRequest): MockStepContentInput {
   const user = lastUserContent(req)
-  const role =
-    agentRoleSchema.options.find((candidate) => {
-      const label = ROLE_DESCRIPTIONS[candidate].split('：')[0]
-      return req.instructions.includes(`角色是「${label}」`)
-    }) ?? 'specialist'
+  const standalone = req.instructions.includes('请直接完成用户的任务。')
+  const role = standalone
+    ? 'specialist'
+    : (agentRoleSchema.options.find((candidate) => {
+        const label = ROLE_DESCRIPTIONS[candidate].split('：')[0]
+        return req.instructions.includes(`角色是「${label}」`)
+      }) ?? 'specialist')
   const feedback = readData(user, 'feedback')
 
   return {
     role,
-    title: /负责其中一个环节：「([^」]+)」/.exec(req.instructions)?.[1] ?? '任务执行',
-    instruction: /1\. 本环节的任务：([^\n]+)/.exec(req.instructions)?.[1] ?? '完成用户任务',
+    title: standalone
+      ? '直接回答'
+      : (/负责其中一个环节：「([^」]+)」/.exec(req.instructions)?.[1] ?? '任务执行'),
+    instruction: standalone
+      ? (/^1\. ([^\n]+)/m.exec(req.instructions)?.[1] ?? '完成用户任务')
+      : (/1\. 本环节的任务：([^\n]+)/.exec(req.instructions)?.[1] ?? '完成用户任务'),
     task: readData(user, 'task'),
     upstreamTitles: [...user.matchAll(/<upstream id="[a-z0-9_]+">\n【([^】]+)】/g)].map(
       (match) => match[1] ?? '',
     ),
-    isFinal: req.instructions.includes('你的产出会直接交付给用户'),
+    isFinal: standalone || req.instructions.includes('你的产出会直接交付给用户'),
     ...(feedback.length > 0 ? { revision: { feedback } } : {}),
   }
 }

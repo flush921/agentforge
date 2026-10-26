@@ -33,15 +33,19 @@ describe('retryMessage', () => {
 })
 
 describe('assistantBrief', () => {
-  it('只包含名称、领域、简介和能力四行', () => {
+  it('只包含名称、领域、简介和实际可用工具四行', () => {
     const brief = assistantBrief(testAssistant)
     expect(brief.split('\n')).toHaveLength(4)
     expect(brief).toContain('名称：学习助手')
-    expect(brief).toContain('能力：datetime、web_search')
+    expect(brief).toContain('可用工具：datetime')
+    expect(brief).not.toContain('web_search')
     expect(brief).not.toContain(testAssistant.persona)
   })
 
-  it('无能力时写无', () => {
-    expect(assistantBrief({ ...testAssistant, capabilities: [] })).toContain('能力：无')
+  it('无可用工具时写无', () => {
+    expect(assistantBrief({ ...testAssistant, capabilities: [] })).toContain('可用工具：无')
+    expect(assistantBrief({ ...testAssistant, capabilities: ['web_search'] })).toContain(
+      '可用工具：无',
+    )
   })
 })

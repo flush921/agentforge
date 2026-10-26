@@ -14,6 +14,7 @@ describe('buildPlanPrompt', () => {
     const result = buildPlanPrompt(testAssistant, task, level, testAssessment, ['datetime'])
     expect(result.instructions).toContain(`本次级别：L${level}`)
     expect(result.instructions).toContain(rule)
+    if (level !== 4) expect(result.instructions).toContain('不要使用 reviewer 角色。')
     expect(result.instructions).toContain('- datetime：获取当前日期与时间')
     expect(result.instructions).toContain('只输出一个 JSON 对象')
     expect(result.user).toContain('<assistant>')

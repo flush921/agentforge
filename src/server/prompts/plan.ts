@@ -10,8 +10,8 @@ import { assistantBrief, INJECTION_NOTICE, wrapData } from './shared'
 type PlannerLevel = 2 | 3 | 4
 
 const LEVEL_RULES: Record<PlannerLevel, string> = {
-  2: '严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。',
-  3: '并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。',
+  2: '严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。不要使用 reviewer 角色。',
+  3: '并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。不要使用 reviewer 角色。',
   4: '先用并行或串行完成主体工作，再挂一个审校节点作为质量闸门。审校节点的 role 为 reviewer，dependsOn 和 reviewTarget 都只指向最终节点；其他节点都不得依赖审校节点；最终节点不能是审校节点。',
 }
 

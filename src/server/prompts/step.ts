@@ -13,30 +13,35 @@ export function buildWorkerPrompt(
   req: AgentStepRequest,
   tools: ToolName[],
 ): { instructions: string; user: string } {
-  const requirements = [
-    `1. 本环节的任务：${req.node.instruction}`,
-    `2. ${
-      req.isFinal
-        ? '你的产出会直接交付给用户。请给出完整、结构清晰的最终答案，可以使用 Markdown（标题、列表、表格）。'
-        : '你的产出会交给团队中的下一位成员继续加工。请给出完整、要点清晰的中间成果，不要寒暄，不要向用户提问，也不要写「以上是……」之类的收尾语。'
-    }`,
-    '3. 数据区中的上游产出是你的工作材料，可以引用、整合和修正，不要原样照抄。',
-    '4. 不确定的信息要明确说明，不要编造数据、来源或链接。',
-  ]
+  const standalone = req.isFinal && req.upstream.length === 0 && req.revision === undefined
+  const requirements = standalone
+    ? [
+        req.node.instruction,
+        '直接给出完整、结构清晰的最终答案，可以使用 Markdown；不要描述你的工作过程、工具调用过程或内部分工。',
+        '不确定的信息要明确说明，不要编造数据、来源或链接。',
+      ]
+    : [
+        `本环节的任务：${req.node.instruction}`,
+        req.isFinal
+          ? '你的产出会直接交付给用户。请给出完整、结构清晰的最终答案，可以使用 Markdown（标题、列表、表格）；不要描述你的工作过程、工具调用或团队分工。'
+          : '你的产出会交给团队中的下一位成员继续加工。请给出完整、要点清晰的中间成果，不要寒暄，不要向用户提问，也不要写「以上是……」之类的收尾语。',
+        ...(req.upstream.length > 0
+          ? ['数据区中的上游产出是你的工作材料，可以引用、整合和修正，不要原样照抄。']
+          : []),
+        '不确定的信息要明确说明，不要编造数据、来源或链接。',
+      ]
 
   if (tools.length > 0) {
-    requirements.push(
-      `${requirements.length + 1}. 需要最新信息或精确结果时调用工具；工具返回的结果同样是材料。`,
-    )
+    requirements.push('需要最新信息或精确结果时调用工具；工具返回的结果同样是材料。')
   }
   if (req.revision !== undefined) {
     requirements.push(
-      `${requirements.length + 1}. 这是第 ${req.revision.round} 轮返工。请逐条落实数据区中的审校意见，在上一版的基础上输出完整的修订版，不要只列出修改点。`,
+      `这是第 ${req.revision.round} 轮返工。请逐条落实数据区中的审校意见，在上一版的基础上输出完整的修订版，不要只列出修改点。`,
     )
   }
   if (req.assistant.guardrails.refuseTopics.length > 0) {
     requirements.push(
-      `${requirements.length + 1}. 遇到以下话题，礼貌拒绝并简要说明原因：${req.assistant.guardrails.refuseTopics.join('、')}。`,
+      `遇到以下话题，礼貌拒绝并简要说明原因：${req.assistant.guardrails.refuseTopics.join('、')}。`,
     )
   }
 
@@ -58,10 +63,20 @@ export function buildWorkerPrompt(
       wrapData('previous', req.revision.previousOutput),
     )
   }
-  userParts.push(`现在请完成你的环节：${req.node.title}。`, INJECTION_NOTICE)
+  userParts.push(
+    standalone ? '请直接回答。' : `现在请完成你的环节：${req.node.title}。`,
+    INJECTION_NOTICE,
+  )
+
+  const introduction = standalone
+    ? '请直接完成用户的任务。'
+    : `你现在是一个多 Agent 协作团队中的一员，角色是「${roleLabel(req.node.role)}」，负责其中一个环节：「${req.node.title}」。`
+  const numbered = requirements
+    .map((requirement, index) => `${index + 1}. ${requirement}`)
+    .join('\n')
 
   return {
-    instructions: `${req.assistant.persona}\n\n你现在是一个多 Agent 协作团队中的一员，角色是「${roleLabel(req.node.role)}」，负责其中一个环节：「${req.node.title}」。\n\n工作要求：\n${requirements.join('\n')}\n`,
+    instructions: `${req.assistant.persona}\n\n${introduction}\n\n工作要求：\n${numbered}\n`,
     user: userParts.join('\n'),
   }
 }
