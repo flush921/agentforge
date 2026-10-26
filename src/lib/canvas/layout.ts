@@ -2,10 +2,10 @@ import dagre from '@dagrejs/dagre'
 import type { GraphNodeKind } from './derive-graph'
 
 export const NODE_SIZE: Record<GraphNodeKind, { width: number; height: number }> = {
-  task: { width: 168, height: 56 },
-  router: { width: 168, height: 56 },
-  planner: { width: 168, height: 56 },
-  output: { width: 168, height: 56 },
+  task: { width: 144, height: 48 },
+  router: { width: 144, height: 48 },
+  planner: { width: 144, height: 48 },
+  output: { width: 144, height: 48 },
   agent: { width: 216, height: 96 },
   reviewer: { width: 184, height: 80 },
 }
@@ -30,7 +30,7 @@ export function layoutGraph(
   direction: 'LR' | 'TB',
 ): Map<string, { x: number; y: number }> {
   const graph = new dagre.graphlib.Graph()
-  graph.setGraph({ rankdir: direction, nodesep: 28, ranksep: 72, marginx: 16, marginy: 16 })
+  graph.setGraph({ rankdir: direction, nodesep: 24, ranksep: 56, marginx: 16, marginy: 16 })
   graph.setDefaultEdgeLabel(() => ({}))
 
   for (const node of nodes) {

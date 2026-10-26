@@ -51,7 +51,7 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
       transition={{ duration: reducedMotion ? 0 : 0.32 }}
       data-status={graphNode.status}
       className={cn(
-        'canvas-system-node flex h-14 w-[168px] items-center gap-3 rounded-full border border-border bg-panel/95 px-4 shadow-lg shadow-black/15',
+        'canvas-system-node flex h-12 w-36 items-center gap-2.5 rounded-full border border-border bg-panel/95 px-3 shadow-lg shadow-black/15',
         graphNode.status === 'running' && 'border-brand/70',
         graphNode.status === 'failed' && 'border-danger/70',
       )}
@@ -59,7 +59,7 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
       <CanvasHandles direction={direction} />
       <Icon className="size-5 shrink-0 text-brand" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[14px] font-medium">
+        <span className="flex items-center gap-1.5 text-[13px] font-medium">
           <span>{title}</span>
           {graphNode.kind === 'planner' && runState.planFailures.length > 0 ? (
             <span className="rounded bg-warning/10 px-1 text-[9px] text-warning">
@@ -69,7 +69,7 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
         </span>
         <span
           className={cn(
-            'block truncate text-[10px] text-text-secondary',
+            'block truncate text-[11px] text-text-secondary',
             graphNode.kind === 'planner' && runState.planSource === 'fallback' && 'text-warning',
           )}
           title={detail}

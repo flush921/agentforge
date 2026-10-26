@@ -17,6 +17,14 @@ export default async function DevCanvasPage({
   const rawT = Number(first(query.t) ?? 0)
   const initialT = Number.isFinite(rawT) && rawT >= 0 ? rawT : 0
   const autoplay = first(query.autoplay) !== '0'
+  const initialCamera = first(query.camera) === 'overview' ? 'overview' : 'follow'
 
-  return <DevCanvasClient initialSample={sample} initialT={initialT} autoplay={autoplay} />
+  return (
+    <DevCanvasClient
+      initialSample={sample}
+      initialT={initialT}
+      autoplay={autoplay}
+      initialCamera={initialCamera}
+    />
+  )
 }

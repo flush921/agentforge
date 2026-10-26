@@ -31,7 +31,7 @@ describe('layoutGraph', () => {
     const { nodes, edges } = l4Graph()
 
     const graph = new dagre.graphlib.Graph()
-    graph.setGraph({ rankdir: 'LR', nodesep: 28, ranksep: 72, marginx: 16, marginy: 16 })
+    graph.setGraph({ rankdir: 'LR', nodesep: 24, ranksep: 56, marginx: 16, marginy: 16 })
     graph.setDefaultEdgeLabel(() => ({}))
     for (const node of nodes) {
       const size = NODE_SIZE[node.kind]

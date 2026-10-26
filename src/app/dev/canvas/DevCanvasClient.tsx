@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { List, Pause, Play, Workflow } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { RunCanvas } from '@/components/canvas/RunCanvas'
+import { RunCanvas, type CameraMode } from '@/components/canvas/RunCanvas'
 import { NodeDrawer } from '@/components/run/NodeDrawer'
 import { RunHeader } from '@/components/run/RunHeader'
 import { RunNodeList } from '@/components/run/RunNodeList'
@@ -19,10 +19,12 @@ export function DevCanvasClient({
   initialSample,
   initialT,
   autoplay,
+  initialCamera,
 }: {
   initialSample: CanvasSample
   initialT: number
   autoplay: boolean
+  initialCamera: CameraMode
 }) {
   const [sample, setSample] = useState(initialSample)
   const [view, setView] = useState<'canvas' | 'list'>('canvas')
@@ -161,7 +163,12 @@ export function DevCanvasClient({
           <RunHeader state={replay.state} time={replay.t} />
           <div className="min-h-0 flex-1">
             {view === 'canvas' ? (
-              <RunCanvas state={replay.state} onOpen={openNode} instantFit={!autoplay} />
+              <RunCanvas
+                state={replay.state}
+                onOpen={openNode}
+                instantFit={!autoplay}
+                initialCamera={initialCamera}
+              />
             ) : (
               <RunNodeList state={replay.state} onOpen={openNode} />
             )}

@@ -2,10 +2,11 @@
 
 import '@xyflow/react/dist/style.css'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
+  ControlButton,
   Controls,
   MarkerType,
   Position,
@@ -16,6 +17,7 @@ import {
   type EdgeTypes,
   type NodeTypes,
 } from '@xyflow/react'
+import { Crosshair, Scan } from 'lucide-react'
 import { MotionConfig, useReducedMotion } from 'motion/react'
 import { deriveGraph, type GraphEdge, type GraphNode } from '@/lib/canvas/derive-graph'
 import { roleInfo } from '@/lib/canvas/format'
@@ -42,19 +44,24 @@ function edgeColor(edge: GraphEdge, source: GraphNode | undefined, state: RunSta
   return 'var(--brand)'
 }
 
+export type CameraMode = 'follow' | 'overview' | 'manual'
+
 function CanvasFlow({
   state,
   onOpen,
   instantFit,
+  initialCamera,
 }: {
   state: RunState
   onOpen: (nodeId: string) => void
   instantFit: boolean
+  initialCamera: CameraMode
 }) {
+  const [cameraMode, setCameraMode] = useState<CameraMode>(initialCamera)
   const width = useStore((store) => store.width)
   const direction = width > 0 && width < 720 ? 'TB' : 'LR'
   const reducedMotion = useReducedMotion()
-  const { fitView, viewportInitialized } = useReactFlow<CanvasFlowNode, CanvasFlowEdge>()
+  const { fitView, getNodes, viewportInitialized } = useReactFlow<CanvasFlowNode, CanvasFlowEdge>()
   const graph = useMemo(() => deriveGraph(state), [state])
   const topologyKey = useMemo(
     () =>
@@ -63,6 +70,19 @@ function CanvasFlow({
         .join('|')}`,
     [graph],
   )
+  const focusKey = useMemo(() => {
+    const running = new Set(
+      graph.nodes.filter((node) => node.status === 'running').map((node) => node.id),
+    )
+    const focus = new Set(running)
+    for (const edge of graph.edges) {
+      if (running.has(edge.target)) focus.add(edge.source)
+    }
+    return [...focus].sort().join('|')
+  }, [graph])
+  const terminal = ['completed', 'failed', 'cancelled'].includes(state.status)
+  const previousTerminal = useRef<boolean | undefined>(undefined)
+  const cameraLayoutKey = graph.nodes.length === 0 ? '' : `${topologyKey}@${direction}`
   const positions = useMemo(
     () => layoutGraph(graph.nodes, graph.edges, direction),
     // 流式更新会更换 graph 引用，但布局输入只有拓扑键和方向。
@@ -70,14 +90,44 @@ function CanvasFlow({
   )
 
   useEffect(() => {
-    if (!viewportInitialized || topologyKey.length === 0) return
+    if (terminal && previousTerminal.current !== true) {
+      setCameraMode('overview')
+    } else if (!terminal && previousTerminal.current === true) {
+      setCameraMode((mode) => (mode === 'manual' ? 'manual' : 'follow'))
+    }
+    previousTerminal.current = terminal
+  }, [terminal])
+
+  // 镜头只跟随焦点、拓扑和方向变化，不能随流式文字移动。
+  useEffect(() => {
+    if (!viewportInitialized || cameraLayoutKey.length === 0) return
+    const duration = reducedMotion || instantFit ? 0 : 600
+    if (cameraMode === 'overview') {
+      void fitView({ padding: 0.08, maxZoom: 1, includeHiddenNodes: true, duration })
+      return
+    }
+    if (cameraMode === 'manual' || focusKey.length === 0) return
+    const focusIds = new Set(focusKey.split('|'))
+    const focusNodes = getNodes().filter((node) => focusIds.has(node.id))
+    if (focusNodes.length === 0) return
     void fitView({
-      padding: 0.18,
+      nodes: focusNodes,
+      padding: 0.3,
       maxZoom: 1,
+      minZoom: 0.55,
       includeHiddenNodes: true,
-      duration: reducedMotion || instantFit ? 0 : 500,
+      duration,
     })
-  }, [fitView, viewportInitialized, instantFit, reducedMotion, topologyKey, direction])
+  }, [
+    cameraLayoutKey,
+    cameraMode,
+    fitView,
+    focusKey,
+    getNodes,
+    instantFit,
+    reducedMotion,
+    viewportInitialized,
+  ])
 
   const nodes = useMemo<CanvasFlowNode[]>(
     () =>
@@ -138,7 +188,7 @@ function CanvasFlow({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       fitView
-      fitViewOptions={{ padding: 0.18, maxZoom: 1, includeHiddenNodes: true }}
+      fitViewOptions={{ padding: 0.08, maxZoom: 1, includeHiddenNodes: true }}
       nodesDraggable={false}
       nodesConnectable={false}
       nodesFocusable={false}
@@ -150,9 +200,37 @@ function CanvasFlow({
       minZoom={0.15}
       maxZoom={1.6}
       colorMode="dark"
+      onMoveStart={(event) => {
+        if (event !== null) setCameraMode('manual')
+      }}
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--grid-dot)" />
-      <Controls showInteractive={false} />
+      <Controls
+        showInteractive={false}
+        showFitView={false}
+        onZoomIn={() => setCameraMode('manual')}
+        onZoomOut={() => setCameraMode('manual')}
+      >
+        <ControlButton
+          title="跟随"
+          aria-label="跟随"
+          aria-pressed={cameraMode === 'follow'}
+          disabled={terminal}
+          className={cameraMode === 'follow' ? '!text-brand' : undefined}
+          onClick={() => setCameraMode('follow')}
+        >
+          <Crosshair className="size-4" aria-hidden />
+        </ControlButton>
+        <ControlButton
+          title="全览"
+          aria-label="全览"
+          aria-pressed={cameraMode === 'overview'}
+          className={cameraMode === 'overview' ? '!text-brand' : undefined}
+          onClick={() => setCameraMode('overview')}
+        >
+          <Scan className="size-4" aria-hidden />
+        </ControlButton>
+      </Controls>
     </ReactFlow>
   )
 }
@@ -161,10 +239,12 @@ export function RunCanvas({
   state,
   onOpen,
   instantFit = false,
+  initialCamera = 'follow',
 }: {
   state: RunState
   onOpen: (nodeId: string) => void
   instantFit?: boolean
+  initialCamera?: CameraMode
 }) {
   return (
     <MotionConfig reducedMotion="user">
@@ -174,7 +254,12 @@ export function RunCanvas({
         className="h-full min-h-[360px] w-full overflow-hidden rounded-2xl border border-border bg-background"
       >
         <ReactFlowProvider>
-          <CanvasFlow state={state} onOpen={onOpen} instantFit={instantFit} />
+          <CanvasFlow
+            state={state}
+            onOpen={onOpen}
+            instantFit={instantFit}
+            initialCamera={initialCamera}
+          />
         </ReactFlowProvider>
       </div>
     </MotionConfig>
