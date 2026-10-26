@@ -13,6 +13,11 @@ import { buildReviewPrompt, buildWorkerPrompt } from '@/server/prompts/step'
 const ROUTE = '/api/agent/step'
 const zeroUsage = (): Usage => ({ inputTokens: 0, outputTokens: 0 })
 
+export function workerOutputBudget(thinking: boolean, isFinal: boolean): number {
+  if (thinking) return 8000
+  return isFinal ? 4000 : 3000
+}
+
 async function* runReview(
   llm: LlmClient,
   req: AgentStepRequest,
@@ -96,7 +101,7 @@ export async function* runAgentStep(
       messages: [{ role: 'user', content: built.user }],
       tools,
       thinking,
-      maxOutputTokens: req.isFinal ? 6000 : 3000,
+      maxOutputTokens: workerOutputBudget(thinking, req.isFinal),
       signal,
     })) {
       if (signal.aborted) {

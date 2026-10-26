@@ -5,7 +5,7 @@ import type { Usage } from '@/lib/contracts/common'
 import type { AgentStreamPart, LlmClient } from '@/server/llm/types'
 import { fakeLlm } from '@/test/fake-llm'
 import { makeReviewRequest, makeStepRequest } from '@/test/step'
-import { runAgentStep } from './step'
+import { runAgentStep, workerOutputBudget } from './step'
 
 async function collect(
   client: LlmClient,
@@ -153,14 +153,26 @@ describe('runAgentStep 工作节点', () => {
     expect(first.streamRequests[0]).toMatchObject({
       tools: [],
       thinking: false,
-      maxOutputTokens: 6000,
+      maxOutputTokens: 4000,
     })
     expect(second.streamRequests[0]).toMatchObject({
       tools: ['datetime'],
       thinking: true,
-      maxOutputTokens: 3000,
+      maxOutputTokens: 8000,
     })
   })
+
+  it.each([
+    { thinking: true, isFinal: true, expected: 8000 },
+    { thinking: true, isFinal: false, expected: 8000 },
+    { thinking: false, isFinal: true, expected: 4000 },
+    { thinking: false, isFinal: false, expected: 3000 },
+  ])(
+    'thinking=$thinking、isFinal=$isFinal 时预算为 $expected',
+    ({ thinking, isFinal, expected }) => {
+      expect(workerOutputBudget(thinking, isFinal)).toBe(expected)
+    },
+  )
 
   it('取消后不再产出事件', async () => {
     const controller = new AbortController()
