@@ -26,6 +26,7 @@ interface Context {
   input: RunInput
   deps: OrchestratorDeps
   onEvent: (event: RunEvent) => void
+  controller: AbortController
   signal: AbortSignal
   state: RunState
   startedAt: number
@@ -96,7 +97,7 @@ function emit(ctx: Context, body: RunEventBody): void {
     ctx.onEvent(event)
   } catch {
     // 回调是外部代码；其异常转成一次内部失败，且不能继续向外抛出。
-    emit(ctx, { type: 'run.failed', error: { code: 'internal', message: '服务内部错误' } })
+    fail(ctx, { code: 'internal', message: '服务内部错误' })
   }
 }
 
@@ -108,6 +109,7 @@ function warn(ctx: Context, message: string): void {
 
 function fail(ctx: Context, error: ApiError): void {
   emit(ctx, { type: 'run.failed', error })
+  ctx.controller.abort()
 }
 
 function cancel(ctx: Context): void {
@@ -380,13 +382,19 @@ function handleReview(ctx: Context, reviewerId: string): void {
   if (targetId === undefined || target?.output === undefined) {
     return
   }
+  const disclaimer = ctx.input.assistant.guardrails.disclaimer
+  const suffix = `\n\n> ⚠️ ${disclaimer ?? ''}`
+  const previousOutput =
+    disclaimer !== undefined && target.output.endsWith(suffix)
+      ? target.output.slice(0, -suffix.length)
+      : target.output
   const revision: Revision = {
     round,
     feedback: review.issues
       .map((issue, index) => `${index + 1}. ${issue}`)
       .join('\n')
       .slice(0, 2000),
-    previousOutput: target.output.slice(0, 6000),
+    previousOutput: previousOutput.slice(0, 6000),
   }
   const revisionId = nextNodeId(targetId, round, new Set(ctx.state.nodeOrder))
   const reviewId = nextNodeId(reviewerId, round, new Set([...ctx.state.nodeOrder, revisionId]))
@@ -613,11 +621,19 @@ export async function runOrchestration(
   onEvent: (event: RunEvent) => void,
   signal: AbortSignal,
 ): Promise<RunState> {
+  const controller = new AbortController()
+  const onAbort = () => controller.abort()
+  if (signal.aborted) {
+    controller.abort()
+  }
+  signal.addEventListener('abort', onAbort, { once: true })
+
   const ctx: Context = {
     input,
     deps,
     onEvent,
-    signal,
+    controller,
+    signal: controller.signal,
     state: initialRunState(),
     startedAt: readNow(deps, 0),
     seq: 0,
@@ -659,11 +675,13 @@ export async function runOrchestration(
     await finalize(ctx)
     throwIfAborted(ctx)
   } catch (error) {
-    if (isAbort(error, signal)) {
+    if (isAbort(error, ctx.signal)) {
       cancel(ctx)
     } else {
       fail(ctx, { code: 'internal', message: '服务内部错误' })
     }
+  } finally {
+    signal.removeEventListener('abort', onAbort)
   }
 
   return ctx.state

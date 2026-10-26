@@ -481,6 +481,29 @@ describe('审校回路', () => {
     expect(state).toMatchObject({ status: 'completed', output: '修订稿', degraded: false })
   })
 
+  it('返工材料先去掉末尾免责声明，避免最终产出重复追加', async () => {
+    const disclaimer = '内容仅供健康参考。'
+    const assistant = {
+      ...testAssistant,
+      guardrails: { ...testAssistant.guardrails, disclaimer },
+    }
+    const { deps, calls } = createFakeDeps({
+      assess: assessmentFor(4),
+      plan: planResponse(4),
+      steps: {
+        writer: [done(`初稿\n\n> ⚠️ ${disclaimer}`)],
+        reviewer: [review('revise', ['补充数据']), done('审校完成')],
+        writer_r1: [done('修订稿')],
+        reviewer_r1: [review('pass'), done('复核完成')],
+      },
+    })
+    await execute(deps, { ...baseInput, assistant })
+    const revision = calls.step.find((call) => call.req.node.id === 'writer_r1')
+
+    expect(revision?.req.revision?.previousOutput).toBe('初稿')
+    expect(revision?.req.revision?.previousOutput).not.toContain('> ⚠️')
+  })
+
   it('23 连续三次 revise 只返工两轮并保留未解决意见警告', async () => {
     const { deps } = createFakeDeps({
       assess: assessmentFor(4),
@@ -630,5 +653,33 @@ describe('取消与异常防御', () => {
     expectConsistent(events, state)
     expect(events.at(-1)).toMatchObject({ type: 'run.failed', error: { code: 'internal' } })
     expect(state.status).toBe('failed')
+  })
+
+  it('run.failed 立即中止在途节点的内部 signal', async () => {
+    const { deps } = createFakeDeps()
+    let requestSignal: AbortSignal | undefined
+    deps.step = async function* (_req, stepSignal) {
+      requestSignal = stepSignal
+      yield { type: 'text', delta: '部分输出' }
+      yield done('不会交付')
+    }
+    const events: RunEvent[] = []
+    const state = await runOrchestration(
+      baseInput,
+      deps,
+      (event) => {
+        events.push(event)
+        if (event.type === 'node.text') {
+          throw new Error('界面回调异常')
+        }
+      },
+      new AbortController().signal,
+    )
+
+    expectConsistent(events, state)
+    expect(state.status).toBe('failed')
+    expect(requestSignal?.aborted).toBe(true)
+    expect(events.at(-1)?.type).toBe('run.failed')
+    expect(events.some((event) => event.type === 'run.cancelled')).toBe(false)
   })
 })
