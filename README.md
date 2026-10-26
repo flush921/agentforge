@@ -43,7 +43,7 @@ src/
 | `npm run format:check` | 检查代码格式                                   |
 | `npm run check`        | 依次运行 lint、typecheck、test 和 format:check |
 
-`npm run check` 不执行 `*.live.ts`。真实联调会串行运行 3 个示例 Agent 的全部 12 条 starter，运行记录输出到 `../collab/reports/live/T10/`，请勿重复运行。
+`npm run check` 不执行 `*.live.ts`。真实联调会串行运行 3 个示例 Agent 的全部 12 条 starter，运行记录输出到 `../collab/reports/live/T11/`，请勿重复运行。
 
 ## 团队信息
 
