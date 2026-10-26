@@ -7,7 +7,6 @@ import type {
   StepEvent,
 } from '../contracts/api'
 import {
-  agentStepRequestSchema,
   apiErrorBodySchema,
   assessResponseSchema,
   planResponseSchema,
