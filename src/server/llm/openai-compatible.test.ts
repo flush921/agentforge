@@ -1,19 +1,27 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { parseEnv } from '@/server/env-schema'
 import { runAgentStep } from '@/server/services/step'
 import { makeStepRequest } from '@/test/step'
-import { createDeepSeekClient } from './deepseek'
+import { createLiveClient, relayFetch } from './openai-compatible'
 import type { AgentLlmRequest, LlmJsonRequest } from './types'
 
-const env = parseEnv({ LLM_MODE: 'live', DEEPSEEK_API_KEY: 'unit-test-key' })
+const env = parseEnv({
+  LLM_MODE: 'live',
+  LLM_BASE_URL: 'https://example.invalid/v1',
+  LLM_API_KEY: 'unit-test-key',
+})
 
-function mockModel(text: string, inputTokens?: number, outputTokens?: number) {
-  return new MockLanguageModelV4({
-    doGenerate: async () => ({
-      content: [{ type: 'text', text }],
+function mockModel(text: string | string[], inputTokens?: number, outputTokens?: number) {
+  const deltas = Array.isArray(text) ? text : [text]
+  const chunks: LanguageModelV4StreamPart[] = [
+    { type: 'text-start', id: 't1' },
+    ...deltas.map((delta): LanguageModelV4StreamPart => ({ type: 'text-delta', id: 't1', delta })),
+    { type: 'text-end', id: 't1' },
+    {
+      type: 'finish',
       finishReason: { unified: 'stop', raw: undefined },
       usage: {
         inputTokens: {
@@ -28,8 +36,11 @@ function mockModel(text: string, inputTokens?: number, outputTokens?: number) {
           reasoning: undefined,
         },
       },
-      warnings: [],
-    }),
+    },
+  ]
+
+  return new MockLanguageModelV4({
+    doStream: async () => ({ stream: simulateReadableStream({ chunks }) }),
   })
 }
 
@@ -48,10 +59,14 @@ function makeRequest(signal = new AbortController().signal): LlmJsonRequest {
   }
 }
 
-describe('createDeepSeekClient', () => {
-  it('传入指令和消息，开启 JSON 模式并关闭思考', async () => {
-    const model = mockModel('{"ok":true}', 11, 22)
-    const client = createDeepSeekClient(env, model)
+describe('createLiveClient', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('通过 streamText 收集 JSON 文本、usage 和请求参数', async () => {
+    const model = mockModel(['{"ok":', 'true}'], 11, 22)
+    const client = createLiveClient(env, model)
     const request = makeRequest()
 
     const result = await client.generateJson(request)
@@ -61,8 +76,9 @@ describe('createDeepSeekClient', () => {
       text: '{"ok":true}',
       usage: { inputTokens: 11, outputTokens: 22 },
     })
-    const call = model.doGenerateCalls[0]
-    expect(call).toBeDefined()
+    expect(model.doGenerateCalls).toHaveLength(0)
+    expect(model.doStreamCalls).toHaveLength(1)
+    const call = model.doStreamCalls[0]
     expect(call?.prompt).toEqual([
       { role: 'system', content: '你是测试助手' },
       { role: 'user', content: [{ type: 'text', text: '第一条需求' }] },
@@ -70,13 +86,13 @@ describe('createDeepSeekClient', () => {
       { role: 'user', content: [{ type: 'text', text: '请修正' }] },
     ])
     expect(call?.responseFormat?.type).toBe('json')
-    expect(call?.providerOptions).toEqual({ deepseek: { thinking: { type: 'disabled' } } })
+    expect(call?.providerOptions).toEqual({ llm: { thinking: { type: 'disabled' } } })
     expect(call?.temperature).toBe(0.8)
     expect(call?.maxOutputTokens).toBe(1500)
   })
 
-  it('模型返回非 JSON 文本时交回原文而不抛出', async () => {
-    const client = createDeepSeekClient(env, mockModel('这里不是 JSON', 7, 9))
+  it('NoObjectGeneratedError 时交回已收集的原文而不抛出', async () => {
+    const client = createLiveClient(env, mockModel('这里不是 JSON', 7, 9))
     await expect(client.generateJson(makeRequest())).resolves.toEqual({
       text: '这里不是 JSON',
       usage: { inputTokens: 7, outputTokens: 9 },
@@ -84,14 +100,29 @@ describe('createDeepSeekClient', () => {
   })
 
   it('usage 缺失时按 0 处理', async () => {
-    const client = createDeepSeekClient(env, mockModel('{"ok":true}'))
+    const client = createLiveClient(env, mockModel('{"ok":true}'))
     const result = await client.generateJson(makeRequest())
     expect(result.usage).toEqual({ inputTokens: 0, outputTokens: 0 })
   })
 
+  it('generateJson 的其他 error part 向外抛出且 SDK 不打印', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const model = new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: [{ type: 'error', error: new Error('json stream failed') }],
+        }),
+      }),
+    })
+    const client = createLiveClient(env, model)
+
+    await expect(client.generateJson(makeRequest())).rejects.toThrow('json stream failed')
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
   it('幻觉未知工具名时跳过工具事件并继续第二步', async () => {
     const model = unknownToolModel()
-    const client = createDeepSeekClient(env, model)
+    const client = createLiveClient(env, model)
     const request: AgentLlmRequest = {
       instructions: '测试指令',
       messages: [{ role: 'user', content: '测试任务' }],
@@ -114,7 +145,7 @@ describe('createDeepSeekClient', () => {
 
   it('runAgentStep 在未知工具后最终产出 done', async () => {
     const model = unknownToolModel()
-    const client = createDeepSeekClient(env, model)
+    const client = createLiveClient(env, model)
     const events = []
     for await (const event of runAgentStep(
       client,
@@ -129,6 +160,58 @@ describe('createDeepSeekClient', () => {
     )
     expect(events.at(-1)).toMatchObject({ type: 'done', output: '已改用文本回答' })
     expect(model.doStreamCalls).toHaveLength(2)
+  })
+})
+
+describe('relayFetch', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('403 带 request illegal 时读取 clone，等待后只重试一次', async () => {
+    vi.useFakeTimers()
+    const first = new Response('request illegal', { status: 403 })
+    const cloneSpy = vi.spyOn(first, 'clone')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const pending = relayFetch('https://example.invalid/v1/chat/completions', { method: 'POST' })
+    await vi.runAllTimersAsync()
+    const response = await pending
+
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(cloneSpy).toHaveBeenCalledTimes(1)
+    await expect(first.text()).resolves.toBe('request illegal')
+  })
+
+  it('403 不带 request illegal 时原样返回且不重试', async () => {
+    const first = new Response('forbidden', { status: 403 })
+    const fetchMock = vi.fn().mockResolvedValue(first)
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await relayFetch('https://example.invalid/v1/chat/completions')
+
+    expect(response).toBe(first)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('200 直接返回且不读取 body', async () => {
+    const first = new Response('ok', { status: 200 })
+    const cloneSpy = vi.spyOn(first, 'clone')
+    const fetchMock = vi.fn().mockResolvedValue(first)
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await relayFetch('https://example.invalid/v1/chat/completions')
+
+    expect(response).toBe(first)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(cloneSpy).not.toHaveBeenCalled()
   })
 })
 

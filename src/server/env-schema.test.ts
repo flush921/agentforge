@@ -6,16 +6,44 @@ describe('parseEnv', () => {
     const env = parseEnv({})
 
     expect(env.LLM_MODE).toBe('mock')
-    expect(env.DEEPSEEK_MODEL).toBe('deepseek-v4-flash')
-    expect(env.DEEPSEEK_API_KEY).toBeUndefined()
+    expect(env.LLM_BASE_URL).toBeUndefined()
+    expect(env.LLM_API_KEY).toBeUndefined()
+    expect(env.LLM_MODEL).toBe('deepseek-v4.1-flash')
     expect(env.ACCESS_CODE).toBeUndefined()
   })
 
-  it('live 模式缺少非空 key 时报告变量名', () => {
-    expect(() => parseEnv({ LLM_MODE: 'live' })).toThrowError('DEEPSEEK_API_KEY')
-    expect(() => parseEnv({ LLM_MODE: 'live', DEEPSEEK_API_KEY: '   ' })).toThrowError(
-      'DEEPSEEK_API_KEY',
+  it('live 模式要求合法的 base URL', () => {
+    expect(() => parseEnv({ LLM_MODE: 'live', LLM_API_KEY: 'unit-test-key' })).toThrowError(
+      'LLM_BASE_URL',
     )
+    expect(() =>
+      parseEnv({
+        LLM_MODE: 'live',
+        LLM_BASE_URL: 'not-a-url',
+        LLM_API_KEY: 'unit-test-key',
+      }),
+    ).toThrowError('LLM_BASE_URL')
+  })
+
+  it('live 模式缺少非空 key 时报告变量名', () => {
+    const base = { LLM_MODE: 'live', LLM_BASE_URL: 'https://example.invalid/v1' }
+    expect(() => parseEnv(base)).toThrowError('LLM_API_KEY')
+    expect(() => parseEnv({ ...base, LLM_API_KEY: '   ' })).toThrowError('LLM_API_KEY')
+  })
+
+  it('live 配置完整时保留接入字段', () => {
+    const env = parseEnv({
+      LLM_MODE: 'live',
+      LLM_BASE_URL: 'https://example.invalid/v1',
+      LLM_API_KEY: 'unit-test-key',
+    })
+
+    expect(env).toMatchObject({
+      LLM_MODE: 'live',
+      LLM_BASE_URL: 'https://example.invalid/v1',
+      LLM_API_KEY: 'unit-test-key',
+      LLM_MODEL: 'deepseek-v4.1-flash',
+    })
   })
 
   it('将空 ACCESS_CODE 转为 undefined', () => {
@@ -27,7 +55,7 @@ describe('parseEnv', () => {
     let thrown: unknown
 
     try {
-      parseEnv({ LLM_MODE: 'invalid', DEEPSEEK_API_KEY: secret })
+      parseEnv({ LLM_MODE: 'invalid', LLM_API_KEY: secret })
     } catch (error) {
       thrown = error
     }

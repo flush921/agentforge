@@ -67,7 +67,7 @@ export function toApiError(error: unknown, signal: AbortSignal, route = 'unknown
         'upstream_error',
         502,
         '模型服务暂时不可用',
-        `上游鉴权失败（${status}），请检查 DEEPSEEK_API_KEY`,
+        `上游鉴权失败（${status}），请检查 LLM_API_KEY`,
       )
     }
     if (status === 402) {

@@ -3,10 +3,14 @@ import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { parseEnv } from '@/server/env-schema'
-import { createDeepSeekClient } from './deepseek'
+import { createLiveClient } from './openai-compatible'
 import type { AgentLlmRequest, AgentStreamPart } from './types'
 
-const env = parseEnv({ LLM_MODE: 'live', DEEPSEEK_API_KEY: 'unit-test-key' })
+const env = parseEnv({
+  LLM_MODE: 'live',
+  LLM_BASE_URL: 'https://example.invalid/v1',
+  LLM_API_KEY: 'unit-test-key',
+})
 
 function usage(inputTokens = 5, outputTokens = 7) {
   return {
@@ -66,7 +70,7 @@ async function collect(
   model: MockLanguageModelV4,
   request = makeRequest(),
 ): Promise<AgentStreamPart[]> {
-  const client = createDeepSeekClient(env, model)
+  const client = createLiveClient(env, model)
   const parts: AgentStreamPart[] = []
   for await (const part of client.streamAgent(request)) {
     parts.push(part)
@@ -74,7 +78,7 @@ async function collect(
   return parts
 }
 
-describe('deepseek.streamAgent', () => {
+describe('llm.streamAgent', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -137,7 +141,7 @@ describe('deepseek.streamAgent', () => {
     await collect(model, makeRequest({ thinking: true }))
     const call = model.doStreamCalls[0]
     expect(call?.providerOptions).toEqual({
-      deepseek: { thinking: { type: 'enabled' }, reasoningEffort: 'low' },
+      llm: { thinking: { type: 'enabled' }, reasoningEffort: 'low' },
     })
     expect(call?.temperature).toBeUndefined()
   })
@@ -146,7 +150,7 @@ describe('deepseek.streamAgent', () => {
     const model = new MockLanguageModelV4({ doStream: async () => textResult('答案') })
     await collect(model, makeRequest({ thinking: false }))
     const call = model.doStreamCalls[0]
-    expect(call?.providerOptions).toEqual({ deepseek: { thinking: { type: 'disabled' } } })
+    expect(call?.providerOptions).toEqual({ llm: { thinking: { type: 'disabled' } } })
     expect(call?.temperature).toBe(0.7)
   })
 

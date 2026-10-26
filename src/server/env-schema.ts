@@ -3,19 +3,29 @@ import { z } from 'zod'
 const envSchema = z
   .object({
     LLM_MODE: z.enum(['mock', 'live']).default('mock'),
-    DEEPSEEK_API_KEY: z.string().optional(),
-    DEEPSEEK_MODEL: z.string().default('deepseek-v4-flash'),
+    LLM_BASE_URL: z.url().optional(),
+    LLM_API_KEY: z.string().optional(),
+    LLM_MODEL: z.string().default('deepseek-v4.1-flash'),
     ACCESS_CODE: z
       .string()
       .optional()
       .transform((value) => (value === '' ? undefined : value)),
   })
   .superRefine((env, ctx) => {
-    if (env.LLM_MODE === 'live' && !env.DEEPSEEK_API_KEY?.trim()) {
+    if (env.LLM_MODE !== 'live') return
+
+    if (env.LLM_BASE_URL === undefined) {
       ctx.addIssue({
         code: 'custom',
-        path: ['DEEPSEEK_API_KEY'],
-        message: 'LLM_MODE=live 时必须提供非空 DEEPSEEK_API_KEY',
+        path: ['LLM_BASE_URL'],
+        message: 'LLM_MODE=live 时必须提供 LLM_BASE_URL',
+      })
+    }
+    if (!env.LLM_API_KEY?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LLM_API_KEY'],
+        message: 'LLM_MODE=live 时必须提供非空 LLM_API_KEY',
       })
     }
   })

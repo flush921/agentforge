@@ -69,7 +69,7 @@ describe('toApiError', () => {
       retryable: false,
     })
     expect(console.error).toHaveBeenCalledWith(
-      `[api] /api/test upstream_error 上游鉴权失败（${status}），请检查 DEEPSEEK_API_KEY`,
+      `[api] /api/test upstream_error 上游鉴权失败（${status}），请检查 LLM_API_KEY`,
     )
   })
 

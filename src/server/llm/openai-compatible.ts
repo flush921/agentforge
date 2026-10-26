@@ -1,7 +1,6 @@
 import 'server-only'
 
 import {
-  generateText,
   isStepCount,
   NoObjectGeneratedError,
   Output,
@@ -9,7 +8,7 @@ import {
   type LanguageModel,
   type LanguageModelUsage,
 } from 'ai'
-import { createDeepSeek, type DeepSeekLanguageModelChatOptions } from '@ai-sdk/deepseek'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { toolNameSchema, type Usage } from '@/lib/contracts/common'
 import type { Env } from '@/server/env-schema'
 import { buildToolSet, summarizeToolResult } from '@/server/tools/registry'
@@ -22,38 +21,68 @@ function mapUsage(usage: LanguageModelUsage | undefined): Usage {
   }
 }
 
-export function createDeepSeekClient(env: Env, model?: LanguageModel): LlmClient {
+export async function relayFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const response = await fetch(input, init)
+  if (response.status !== 403) return response
+
+  const body = await response.clone().text()
+  if (!body.includes('request illegal')) return response
+
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return fetch(input, init)
+}
+
+export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {
   const selectedModel =
-    model ?? createDeepSeek({ apiKey: env.DEEPSEEK_API_KEY ?? '' }).chat(env.DEEPSEEK_MODEL)
+    model ??
+    createOpenAICompatible({
+      name: 'llm',
+      baseURL: env.LLM_BASE_URL ?? '',
+      apiKey: env.LLM_API_KEY ?? '',
+      includeUsage: true,
+      fetch: relayFetch,
+    }).chatModel(env.LLM_MODEL)
 
   return {
     mode: 'live',
     async generateJson(req) {
-      try {
-        const result = await generateText({
-          model: selectedModel,
-          instructions: req.instructions,
-          messages: req.messages,
-          output: Output.json(),
-          temperature: req.temperature,
-          maxOutputTokens: req.maxOutputTokens,
-          abortSignal: req.signal,
-          timeout: 30_000,
-          maxRetries: 1,
-          providerOptions: {
-            deepseek: {
-              thinking: { type: 'disabled' },
-            } satisfies DeepSeekLanguageModelChatOptions,
-          },
-        })
+      const result = streamText({
+        model: selectedModel,
+        instructions: req.instructions,
+        messages: req.messages,
+        output: Output.json(),
+        temperature: req.temperature,
+        maxOutputTokens: req.maxOutputTokens,
+        abortSignal: req.signal,
+        timeout: { totalMs: 45_000 },
+        maxRetries: 1,
+        providerOptions: {
+          llm: { thinking: { type: 'disabled' } },
+        },
+        onError: () => {},
+      })
+      let text = ''
+      let usage: Usage = { inputTokens: 0, outputTokens: 0 }
 
-        return { text: result.text, usage: mapUsage(result.usage) }
-      } catch (error) {
-        if (NoObjectGeneratedError.isInstance(error)) {
-          return { text: error.text ?? '', usage: mapUsage(error.usage) }
+      for await (const part of result.stream) {
+        switch (part.type) {
+          case 'text-delta':
+            text += part.text
+            break
+          case 'finish':
+            usage = mapUsage(part.totalUsage)
+            break
+          case 'error':
+            if (!NoObjectGeneratedError.isInstance(part.error)) throw part.error
+            break
+          case 'abort':
+            throw new DOMException('aborted', 'AbortError')
+          default:
+            break
         }
-        throw error
       }
+
+      return { text, usage }
     },
     async *streamAgent(req) {
       const result = streamText({
@@ -68,10 +97,10 @@ export function createDeepSeekClient(env: Env, model?: LanguageModel): LlmClient
         maxOutputTokens: req.maxOutputTokens,
         ...(req.thinking ? {} : { temperature: 0.7 }),
         providerOptions: {
-          deepseek: {
+          llm: {
             thinking: { type: req.thinking ? 'enabled' : 'disabled' },
             ...(req.thinking ? { reasoningEffort: 'low' as const } : {}),
-          } satisfies DeepSeekLanguageModelChatOptions,
+          },
         },
         onError: () => {},
       })
