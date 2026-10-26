@@ -11,6 +11,13 @@
   --color-panel: var(--panel);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-role-gather: var(--role-gather);
+  --color-role-reason: var(--role-reason);
+  --color-role-produce: var(--role-produce);
+  --color-role-review: var(--role-review);
+  --color-edge: var(--edge);
+  --color-grid-dot: var(--grid-dot);
+  --color-ink-muted: var(--ink-muted);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
@@ -65,6 +72,13 @@
   --text-primary: #edf6f7;
   --text-secondary: #9aabb4;
   --brand: #22d3ee;
+  --role-gather: #3987e5;
+  --role-reason: #199e70;
+  --role-produce: #d95926;
+  --role-review: #c3cbd1;
+  --edge: #2b3a45;
+  --grid-dot: #1c2830;
+  --ink-muted: #5b6b75;
   --accent: #1a2730;
   --success: #34d399;
   --warning: #fbbf24;
@@ -108,5 +122,84 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+.canvas-agent-card[data-status='pending'] {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.canvas-agent-card[data-status='running'] {
+  border-color: var(--node-accent);
+}
+
+.canvas-agent-card[data-status='completed'] {
+  border-color: color-mix(in oklab, var(--node-accent) 60%, transparent);
+}
+
+.canvas-agent-card[data-status='failed'] {
+  border-color: var(--danger);
+}
+
+.canvas-agent-card[data-status='skipped'] {
+  border-style: dashed;
+  opacity: 0.45;
+}
+
+.canvas-avatar-ring::before {
+  content: '';
+  position: absolute;
+  display: none;
+  inset: -4px;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, transparent 0 30%, var(--node-accent) 55%, transparent 85%);
+}
+
+.canvas-agent-card[data-status='running'] .canvas-avatar-ring::before {
+  display: block;
+}
+
+@keyframes canvas-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes canvas-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--node-accent) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 24px 2px color-mix(in oklab, var(--node-accent) 30%, transparent);
+  }
+}
+
+@keyframes canvas-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .react-flow__node {
+    transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .canvas-agent-card[data-status='running'] {
+    animation: canvas-breathe 1.8s ease-in-out infinite;
+  }
+
+  .canvas-agent-card[data-status='running'] .canvas-avatar-ring::before {
+    animation: canvas-rotate 1.2s linear infinite;
+  }
+
+  .canvas-spin {
+    animation: canvas-rotate 1.2s linear infinite;
+  }
+
+  .canvas-stream-cursor {
+    animation: canvas-blink 0.9s steps(2, start) infinite;
   }
 }
