@@ -213,3 +213,142 @@
     animation: canvas-blink 0.9s steps(2, start) infinite;
   }
 }
+
+.markdown {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: 1.1rem 0 0.55rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown h1 {
+  font-size: 1.35rem;
+}
+
+.markdown h2 {
+  font-size: 1.16rem;
+}
+
+.markdown h3 {
+  font-size: 1.04rem;
+}
+
+.markdown p {
+  margin: 0.65rem 0;
+}
+
+.markdown a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.65rem 0;
+  padding-left: 1.4rem;
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown li {
+  margin: 0.25rem 0;
+}
+
+.markdown li::marker {
+  color: var(--ink-muted);
+}
+
+.markdown blockquote {
+  margin: 0.85rem 0;
+  padding: 0.65rem 0.85rem;
+  border-left: 3px solid var(--warning);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: color-mix(in oklab, var(--warning) 8%, transparent);
+  color: var(--text-secondary);
+}
+
+.markdown blockquote p {
+  margin: 0;
+}
+
+.markdown code {
+  padding: 0.12rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--secondary);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+.markdown pre {
+  margin: 0.85rem 0;
+  padding: 0.85rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--background);
+}
+
+.markdown pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+}
+
+.markdown table {
+  display: block;
+  width: 100%;
+  margin: 0.85rem 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.markdown th,
+.markdown td {
+  min-width: 6rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdown th {
+  background: var(--panel);
+  font-weight: 600;
+}
+
+.markdown hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.markdown input[type='checkbox'] {
+  margin-right: 0.35rem;
+  accent-color: var(--brand);
+}

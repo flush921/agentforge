@@ -67,6 +67,11 @@ export function ruleAssess(task: string): ComplexityAssessment | null {
   }
 }
 
+export function intensityAdjustment(value: number): number {
+  const adjustment = Math.round((value - 0.5) * 4)
+  return adjustment === 0 ? 0 : adjustment
+}
+
 export function decideLevel(
   dims: ComplexityAssessment['dims'],
   intensity: number,
@@ -74,8 +79,7 @@ export function decideLevel(
 ): LevelDecision {
   const rawScore = dims.subtasks + dims.tools + dims.parallel + dims.rigor + dims.length
   const clampedIntensity = clamp(intensity, 0, 1)
-  const roundedAdjustment = Math.round((clampedIntensity - 0.5) * 4)
-  const adjustment = roundedAdjustment === 0 ? 0 : roundedAdjustment
+  const adjustment = intensityAdjustment(clampedIntensity)
   const score = clamp(rawScore + adjustment, 0, 10)
 
   let level: Level
