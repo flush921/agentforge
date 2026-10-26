@@ -42,7 +42,7 @@ export function AssistantCard({
     >
       <Link
         href={`/a/${encodeURIComponent(assistant.id)}`}
-        aria-label={`打开助手 ${assistant.name}`}
+        aria-label={`打开 Agent ${assistant.name}`}
         className="block h-full min-h-44 rounded-xl border border-border bg-panel p-4 transition-colors hover:border-brand/45 hover:bg-secondary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         <div className={cn('flex items-center gap-3', preset ? 'pr-12' : 'pr-7')}>
@@ -86,7 +86,7 @@ export function AssistantCard({
                 variant="ghost"
                 size="icon-sm"
                 disabled={deleting}
-                aria-label={`删除助手 ${assistant.name}`}
+                aria-label={`删除 Agent ${assistant.name}`}
                 className="absolute right-2 top-2 text-ink-muted hover:text-danger"
               />
             }
@@ -97,7 +97,7 @@ export function AssistantCard({
             <AlertDialogHeader>
               <AlertDialogTitle>删除「{assistant.name}」？</AlertDialogTitle>
               <AlertDialogDescription>
-                删除后该助手的运行记录也会一并删除，且无法恢复。
+                {'删除后该 Agent 的运行记录也会一并删除，且无法恢复。'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

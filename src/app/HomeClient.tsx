@@ -44,7 +44,7 @@ export function HomeClient() {
         if (active) setAssistants(records)
       })
       .catch(() => {
-        if (active) setStorageError('浏览器存储不可用，助手将无法保存')
+        if (active) setStorageError('浏览器存储不可用，Agent 将无法保存')
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -171,12 +171,14 @@ export function HomeClient() {
 
       <section id="library" aria-busy={loading} className="mt-10 scroll-mt-24">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">我的助手</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{'我的 Agent'}</h2>
           {!loading && storageError === null && assistants.length === 0 ? (
-            <p className="text-xs text-text-secondary">还没有助手，先在上面生成一个吧</p>
+            <p className="text-xs text-text-secondary">{'还没有 Agent，先在上面生成一个吧'}</p>
           ) : null}
           {!loading && assistants.length > 0 ? (
-            <span className="text-xs text-ink-muted">{assistants.length} 个助手</span>
+            <span className="text-xs text-ink-muted">
+              {assistants.length} 个{' Agent'}
+            </span>
           ) : null}
         </div>
         {storageError !== null ? (
@@ -213,7 +215,7 @@ export function HomeClient() {
         ) : null}
 
         <div className="mt-6 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-medium text-text-primary">示例助手</h2>
+          <h2 className="text-base font-medium text-text-primary">{'示例 Agent'}</h2>
           <span className="text-[11px] text-ink-muted">同一引擎，不同能力组合</span>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -43,7 +43,9 @@ function ReplayPlayer({ record, assistant }: { record: RunRecord; assistant?: As
           返回工作台
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold">{assistant?.name ?? '助手'} · 运行回放</h1>
+          <h1 className="truncate text-sm font-semibold">
+            {assistant?.name ?? 'Agent'} · 运行回放
+          </h1>
           <p className="mt-0.5 text-[11px] text-brand">回放 · 不消耗 token</p>
         </div>
       </header>

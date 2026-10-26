@@ -49,7 +49,7 @@ export function DevCanvasClient({
                   </span>
                 </div>
                 <p className="text-[11px] text-text-secondary">
-                  编排星图 · 看见 Agent 如何协作与自我修正
+                  编排星图 · 看见子 Agent 如何协作与自我修正
                 </p>
               </div>
             </div>

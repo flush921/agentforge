@@ -33,7 +33,7 @@ export function GenerateForm({
   }
 
   return (
-    <section aria-label="生成助手">
+    <section aria-label="生成 Agent">
       <form
         aria-busy={generating}
         onSubmit={(event) => {
@@ -43,7 +43,7 @@ export function GenerateForm({
         className="rounded-2xl border border-border bg-panel p-4 shadow-xl shadow-black/10 sm:p-5"
       >
         <label htmlFor="assistant-prompt" className="text-sm font-medium text-text-primary">
-          描述你想要的助手
+          描述你想要的 Agent
         </label>
         <Textarea
           ref={textareaRef}
@@ -102,7 +102,7 @@ export function GenerateForm({
             ) : (
               <Sparkles aria-hidden />
             )}
-            {generating ? '正在设计…' : '生成助手'}
+            {generating ? '正在设计…' : '生成 Agent'}
           </Button>
         </div>
       </form>

@@ -65,8 +65,7 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
           </span>
         ) : null}
         <span className="inline-flex items-center gap-1.5 text-xs text-text-secondary">
-          <Bot className="size-4 text-text-primary" aria-hidden />
-          Agent ×{state.nodeOrder.length}
+          <Bot className="size-4 text-text-primary" aria-hidden />子 Agent ×{state.nodeOrder.length}
           {dynamicCount > 0 ? <span className="text-brand">（+{dynamicCount} 动态）</span> : null}
         </span>
         {budget !== undefined ? (

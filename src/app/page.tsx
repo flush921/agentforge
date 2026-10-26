@@ -15,11 +15,12 @@ export default function Home() {
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
             一句话，生成你的
             <span className="whitespace-nowrap">
-              专属 <span className="text-brand">AI 助手</span>
+              专属 <span className="text-brand">Agent</span>
             </span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
-            它会按任务难度，自动调度 1 到 N 个 Agent 协作完成，并把整个过程画给你看
+            一个会造 Agent 的 Agent：为你生成专属 Agent，再按任务难度调度 1 到 N 个子 Agent
+            协作完成，并把整个过程画给你看
           </p>
         </section>
         <HomeClient />

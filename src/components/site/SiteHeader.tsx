@@ -21,7 +21,7 @@ export function SiteHeader({ libraryHref = '/#library' }: { libraryHref?: string
           href={libraryHref}
           className="rounded-lg border border-border bg-panel px-3 py-2 text-xs text-text-secondary transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
-          助手库
+          Agent 库
         </Link>
       </div>
     </header>

@@ -28,7 +28,7 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
       runState.status === 'planning'
         ? '规划中…'
         : runState.planSource === 'fallback'
-          ? '已退回单 Agent'
+          ? '已退回单子 Agent'
           : `${runState.plan?.nodes.length ?? 0} 个环节`
   } else if (graphNode.kind === 'output') {
     title = '交付'

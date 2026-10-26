@@ -2,15 +2,15 @@ import type { Capability, Direction } from '../contracts/common'
 import { usableTools } from '../orchestrator/tools'
 
 export const DIRECTION_LABELS = {
-  agent: '智能体',
+  agent: '通用任务',
   rag: '知识问答',
   multimodal: '多模态',
-  office: '协同办公',
+  office: '办公提效',
   education: '教育学习',
   health: '健康生活',
   coding: '代码开发',
   data: '数据分析',
-  safety: '安全治理',
+  safety: '内容安全',
   social: '社交社区',
 } as const satisfies Record<Direction, string>
 

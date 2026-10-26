@@ -47,6 +47,27 @@ describe('buildMockStepContent', () => {
     expect(content).toContain('已根据审校意见修订：补充数据依据')
   })
 
+  it('最终节点的离线提示下一行是空行', () => {
+    const content = buildMockStepContent({
+      ...base,
+      isFinal: true,
+      revision: { feedback: '补充数据依据' },
+    })
+    const lines = content.split('\n')
+
+    expect(lines[0]).toBe('> 当前为离线演示模式，内容由模板生成。')
+    expect(lines[1]).toBe('')
+  })
+
+  it('最终节点标题去掉修订和复核前缀', () => {
+    for (const title of ['修订·报告写作', '复核·报告写作', '修订·复核·报告写作']) {
+      const content = buildMockStepContent({ ...base, title, isFinal: true })
+
+      expect(content).toContain('# 报告写作')
+      expect(content).not.toContain(`# ${title}`)
+    }
+  })
+
   it('长输入截断到 400 字以内', () => {
     const content = buildMockStepContent({
       ...base,

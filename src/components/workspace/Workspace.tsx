@@ -237,7 +237,7 @@ export function Workspace({ id }: { id: string }) {
         <div role="status" aria-live="polite" className="mx-auto max-w-3xl space-y-4 pt-16">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-64 w-full" />
-          <p className="text-sm text-text-secondary">正在读取助手配置…</p>
+          <p className="text-sm text-text-secondary">{'正在读取 Agent 配置…'}</p>
         </div>
       </main>
     )
@@ -246,7 +246,7 @@ export function Workspace({ id }: { id: string }) {
   if (assistant === null) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center text-text-primary">
-        <h1 className="text-2xl font-semibold">助手不存在</h1>
+        <h1 className="text-2xl font-semibold">{'Agent 不存在'}</h1>
         <p className="mt-2 text-sm text-text-secondary">它可能已被删除，或链接不正确。</p>
         <Button className="mt-6" render={<Link href="/" />}>
           返回首页

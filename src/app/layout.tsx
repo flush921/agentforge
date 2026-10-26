@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'AgentForge｜专属 AI 助手生成器',
-  description: '一句话生成你的专属 AI 助手。',
+  title: 'AgentForge｜生成 Agent 的 Agent',
+  description: '一句话生成你的专属 Agent，按任务难度自动编排子 Agent 协作。',
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

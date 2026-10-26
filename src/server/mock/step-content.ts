@@ -31,10 +31,12 @@ export function buildMockStepContent(input: MockStepContentInput): string {
   const overview = `本环节角色为 ${input.role}，围绕「${input.title}」开展工作。具体要求是：${input.instruction}。用户任务摘录为：${task}。可参考的上游成果为：${upstream}。`
   const quality =
     '组织内容时先核对目标与约束，再按重要程度安排要点；缺少依据的地方明确保留不确定性，不补写虚构的数据、来源或链接。'
+  const title = input.title.replace(/^(?:修订·|复核·)+/, '')
   const lines: string[] = []
 
   if (input.isFinal) {
     lines.push('> 当前为离线演示模式，内容由模板生成。')
+    lines.push('')
   }
   if (revision !== undefined) {
     lines.push(revision)
@@ -42,7 +44,7 @@ export function buildMockStepContent(input: MockStepContentInput): string {
 
   if (input.isFinal) {
     lines.push(
-      `# ${input.title}`,
+      `# ${title}`,
       '## 任务理解',
       overview,
       '## 工作成果',

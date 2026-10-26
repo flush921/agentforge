@@ -43,7 +43,7 @@ export function TaskComposer({
       className="shrink-0 border-t border-border bg-panel p-3"
     >
       <label htmlFor="workspace-task" className="sr-only">
-        输入要交给助手的任务
+        输入要交给 Agent 的任务
       </label>
       <Textarea
         id="workspace-task"
@@ -83,7 +83,7 @@ export function TaskComposer({
             <label htmlFor="confirm-before-run" className="text-xs text-text-primary">
               执行前确认
             </label>
-            <p className="text-[10px] text-ink-muted">多 Agent 编排先给你过目</p>
+            <p className="text-[10px] text-ink-muted">子 Agent 编排先给你过目</p>
           </div>
         </div>
       </div>

@@ -27,9 +27,11 @@ function EmptyCanvas() {
         </span>
       </div>
       <p className="mt-6 max-w-sm text-sm leading-6 text-text-secondary">
-        发送任务后，这里会实时画出 Agent 编排
+        {'发送任务后，这里会实时画出子 Agent 编排'}
       </p>
-      <p className="mt-2 text-xs text-ink-muted">简单任务一个 Agent，复杂任务多 Agent 协作</p>
+      <p className="mt-2 text-xs text-ink-muted">
+        {'简单任务一个子 Agent，复杂任务多子 Agent 协作'}
+      </p>
     </div>
   )
 }

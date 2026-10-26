@@ -37,7 +37,7 @@ function Welcome({
   onPickStarter: (starter: string) => void
 }) {
   return (
-    <section aria-label="助手开场示例" className="space-y-4">
+    <section aria-label="Agent 开场示例" className="space-y-4">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
@@ -80,7 +80,9 @@ function Welcome({
           </button>
         ))}
       </div>
-      <p className="text-xs leading-5 text-ink-muted">试试从简单到复杂，看看 Agent 数量怎么变化</p>
+      <p className="text-xs leading-5 text-ink-muted">
+        {'试试从简单到复杂，看看子 Agent 数量怎么变化'}
+      </p>
     </section>
   )
 }
@@ -95,7 +97,7 @@ function Progress({ state, phase }: { state: RunState; phase: RunPhase }) {
         : state.status === 'running'
           ? state.nodeOrder.length === 0
             ? '正在准备执行…'
-            : `${state.nodeOrder.length} 个 Agent 协作中，已完成 ${Object.values(state.nodes).filter((node) => node.status === 'completed').length}/${state.nodeOrder.length}`
+            : `${state.nodeOrder.length} 个子 Agent 协作中，已完成 ${Object.values(state.nodes).filter((node) => node.status === 'completed').length}/${state.nodeOrder.length}`
           : undefined
   return text === undefined ? null : <p className="mt-2 text-xs text-text-secondary">{text}</p>
 }
@@ -168,7 +170,7 @@ function SessionView({
               <span className="font-mono text-brand">L{state.level}</span>
             ) : null}
             {state.nodeOrder.length > 0 ? (
-              <span className="text-text-secondary">Agent ×{state.nodeOrder.length}</span>
+              <span className="text-text-secondary">子 Agent ×{state.nodeOrder.length}</span>
             ) : null}
           </div>
           {current ? <Progress state={state} phase={phase} /> : null}

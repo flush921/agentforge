@@ -160,7 +160,7 @@ export const HistoryPanel = memo(function HistoryPanel({
                             L{run.level}
                           </span>
                         ) : null}
-                        <span>Agent ×{agentCount(run)}</span>
+                        <span>子 Agent ×{agentCount(run)}</span>
                         <span className={status.className}>
                           <StatusIcon className="mr-1 inline size-3" aria-hidden />
                           {status.label}

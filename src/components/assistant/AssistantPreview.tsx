@@ -17,9 +17,8 @@ import {
 import { Button } from '@/components/ui/button'
 import type { AssistantDraft } from '@/lib/contracts/assistant'
 import type { Capability } from '@/lib/contracts/common'
-import { CAPABILITY_LABELS, isCapabilityAvailable } from '@/lib/assistant/labels'
+import { CAPABILITY_LABELS, DIRECTION_LABELS, isCapabilityAvailable } from '@/lib/assistant/labels'
 import { cn } from '@/lib/utils'
-import { DirectionStrip } from './DirectionStrip'
 
 const capabilityIcons: Record<Capability, LucideIcon> = {
   web_search: Search,
@@ -45,7 +44,7 @@ export function AssistantPreview({
 }) {
   return (
     <section
-      aria-label="助手预览"
+      aria-label="Agent 预览"
       aria-busy={saving}
       data-testid="assistant-preview"
       className="rounded-2xl border border-brand/25 bg-panel p-4 shadow-xl shadow-black/15 sm:p-6"
@@ -64,16 +63,21 @@ export function AssistantPreview({
             <span className="rounded-full border border-brand/30 bg-brand/10 px-2 py-0.5 text-[10px] text-brand">
               {draft.domain}
             </span>
+            {draft.directions.map((direction) => (
+              <span
+                key={direction}
+                data-scene-tag={direction}
+                className="rounded-full border border-border/70 bg-background/45 px-2 py-0.5 text-[10px] text-text-secondary"
+              >
+                {DIRECTION_LABELS[direction]}
+              </span>
+            ))}
           </div>
           <p className="mt-1 text-sm leading-5 text-text-secondary">{draft.tagline}</p>
         </div>
       </header>
 
-      <div className="mt-6">
-        <DirectionStrip directions={draft.directions} />
-      </div>
-
-      <section className="mt-6" aria-label="助手能力">
+      <section className="mt-6" aria-label="Agent 能力">
         <h3 className="text-sm font-medium text-text-primary">能力组合</h3>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {draft.capabilities.map((capability) => {
