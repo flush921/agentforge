@@ -3,6 +3,7 @@
 import {
   CheckCircle2,
   Clock3,
+  HeartHandshake,
   Loader2,
   MinusCircle,
   ShieldAlert,
@@ -129,6 +130,9 @@ function SessionView({
   onConfirm: (accept: boolean) => void
   onRetry: (task: string, intensity: number) => void
 }) {
+  const guard = state?.assessment?.guard
+  const isCrisis = guard?.kind === 'crisis'
+
   return (
     <article
       data-conversation-id={session.id}
@@ -174,10 +178,24 @@ function SessionView({
               )}
               {current && phase === 'awaiting_confirm' ? '等待确认' : statusLabels[state.status]}
             </span>
-            {state.level !== undefined ? (
+            {guard !== undefined ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 font-medium',
+                  isCrisis ? 'text-brand' : 'text-warning',
+                )}
+              >
+                {isCrisis ? (
+                  <HeartHandshake className="size-3.5" aria-hidden />
+                ) : (
+                  <ShieldAlert className="size-3.5" aria-hidden />
+                )}
+                {isCrisis ? '我们在这里' : '安全拦截'}
+              </span>
+            ) : state.level !== undefined ? (
               <span className="font-mono text-brand">L{state.level}</span>
             ) : null}
-            {state.nodeOrder.length > 0 ? (
+            {guard === undefined && state.nodeOrder.length > 0 ? (
               <span className="text-text-secondary">子 Agent ×{state.nodeOrder.length}</span>
             ) : null}
           </div>
@@ -201,18 +219,28 @@ function SessionView({
             : null}
           {state.status === 'completed' ? (
             <div className="mt-3">
-              {state.warnings.length > 0 && state.plan === undefined ? (
+              {guard !== undefined && state.warnings.length > 0 && state.plan === undefined ? (
                 <div
                   data-guard-blocked="true"
-                  className="mb-3 flex items-center gap-2 rounded-lg border border-warning/25 bg-warning/10 p-3 text-sm font-medium text-warning"
+                  data-guard-kind={guard.kind}
+                  className={cn(
+                    'mb-3 flex items-center gap-2 rounded-lg border p-3 text-sm font-medium',
+                    isCrisis
+                      ? 'border-brand/25 bg-brand/10 text-brand'
+                      : 'border-warning/25 bg-warning/10 text-warning',
+                  )}
                 >
-                  <ShieldAlert className="size-4 shrink-0" aria-hidden />
-                  安全护栏已拦截
+                  {isCrisis ? (
+                    <HeartHandshake className="size-4 shrink-0" aria-hidden />
+                  ) : (
+                    <ShieldAlert className="size-4 shrink-0" aria-hidden />
+                  )}
+                  {isCrisis ? '我们在这里' : '安全护栏已拦截'}
                 </div>
               ) : null}
               {state.output !== undefined ? <Markdown>{state.output}</Markdown> : null}
               {state.degraded ? <p className="mt-3 text-xs text-warning">本次为降级交付</p> : null}
-              {state.warnings.length > 0 ? (
+              {state.warnings.length > 0 && !isCrisis ? (
                 <div className="mt-3 rounded-lg border border-warning/25 bg-warning/10 p-3 text-xs text-warning">
                   <p className="flex items-center gap-1.5 font-medium">
                     <TriangleAlert className="size-3.5" aria-hidden />

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { APICallError } from 'ai'
 import type { ComplexityAssessment } from '@/lib/contracts/plan'
 import { fakeLlm } from '@/test/fake-llm'
 import { testAssistant } from '@/test/fixtures'
@@ -10,8 +11,29 @@ const fallback: ComplexityAssessment = {
   source: 'fallback',
 }
 const signal = new AbortController().signal
+const RAW_ERROR = '响应原文不应写入日志'
+
+function apiError(statusCode: number): APICallError {
+  return new APICallError({
+    message: RAW_ERROR,
+    url: 'https://example.invalid',
+    requestBodyValues: {},
+    statusCode,
+    responseBody: RAW_ERROR,
+    isRetryable: statusCode === 429 || statusCode >= 500,
+  })
+}
 
 describe('assessTask', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
   it('危机规则命中时返回 guard 且不调用 LLM', async () => {
     const { client, requests } = fakeLlm([])
     const result = await assessTask(client, testAssistant, '我不想活了', signal)
@@ -114,20 +136,79 @@ describe('assessTask', () => {
     })
   })
 
-  it('输出非法时返回 fallback', async () => {
-    const { client } = fakeLlm(['不是 JSON'])
+  it('输出非法时不重试，返回 fallback 并记录安全日志', async () => {
+    const { client, requests } = fakeLlm(['不是 JSON'])
     expect(await assessTask(client, testAssistant, '分析任务', signal)).toEqual({
       ok: true,
       value: fallback,
     })
+    expect(requests).toHaveLength(1)
+    expect(console.error).toHaveBeenCalledWith(
+      '[api] /api/orchestrate/assess fallback 输出未通过校验',
+    )
   })
 
-  it('LLM 抛出普通错误时返回 fallback', async () => {
-    const { client } = fakeLlm([new Error('network failed')])
+  it('不可重试错误不重试，直接 fallback 并记录错误码', async () => {
+    const { client, requests } = fakeLlm([apiError(401)])
     expect(await assessTask(client, testAssistant, '分析任务', signal)).toEqual({
       ok: true,
       value: fallback,
     })
+    expect(requests).toHaveLength(1)
+    expect(console.error).toHaveBeenCalledWith(
+      '[api] /api/orchestrate/assess fallback 调用失败（upstream_error）',
+    )
+    const logs = vi.mocked(console.error).mock.calls.flat().join(' ')
+    expect(logs).not.toContain(RAW_ERROR)
+  })
+
+  it('可重试错误等待 800ms 后重试，第二次成功', async () => {
+    vi.useFakeTimers()
+    const output = {
+      dims: { subtasks: 1, tools: 0, parallel: 0, rigor: 1, length: 1 },
+      rationale: '重试后评估完成',
+      guard: { blocked: false, reason: '', topic: false },
+    }
+    const { client, requests } = fakeLlm([apiError(503), JSON.stringify(output)])
+    const promise = assessTask(client, testAssistant, '分析任务', signal)
+
+    await vi.advanceTimersByTimeAsync(800)
+
+    await expect(promise).resolves.toEqual({
+      ok: true,
+      value: { dims: output.dims, rationale: output.rationale, source: 'llm' },
+    })
+    expect(requests).toHaveLength(2)
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('fallback'))
+  })
+
+  it('两次调用都失败时返回 fallback，且日志不包含响应原文', async () => {
+    vi.useFakeTimers()
+    const { client, requests } = fakeLlm([apiError(503), apiError(503)])
+    const promise = assessTask(client, testAssistant, '分析任务', signal)
+
+    await vi.advanceTimersByTimeAsync(800)
+
+    await expect(promise).resolves.toEqual({ ok: true, value: fallback })
+    expect(requests).toHaveLength(2)
+    expect(console.error).toHaveBeenCalledWith(
+      '[api] /api/orchestrate/assess fallback 调用失败（upstream_error）',
+    )
+    const logs = vi.mocked(console.error).mock.calls.flat().join(' ')
+    expect(logs).not.toContain(RAW_ERROR)
+  })
+
+  it('重试等待期间取消时直接抛出且不记 fallback 日志', async () => {
+    vi.useFakeTimers()
+    const controller = new AbortController()
+    const { client, requests } = fakeLlm([apiError(503)])
+    const promise = assessTask(client, testAssistant, '分析任务', controller.signal)
+    await vi.advanceTimersByTimeAsync(0)
+    controller.abort()
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
+    expect(requests).toHaveLength(1)
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('fallback'))
   })
 
   it('取消错误向上抛出而不吞掉', async () => {
@@ -139,5 +220,6 @@ describe('assessTask', () => {
     controller.abort()
 
     await expect(promise).rejects.toBe(error)
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('fallback'))
   })
 })
