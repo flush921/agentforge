@@ -1,7 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiErrorBodySchema, planResponseSchema } from '@/lib/contracts/api'
 import { validatePlan } from '@/lib/orchestrator/validate-plan'
+import { resetEnvForTests } from '@/server/env'
 import { setMockDelayForTests } from '@/server/llm/mock'
+import { resetRateLimitForTests } from '@/server/rate-limit'
 import { testAssistant, testAssessment } from '@/test/fixtures'
 import { postJson } from '@/test/http'
 import { POST } from './route'
@@ -17,10 +19,14 @@ const validRequest = {
 describe('POST /api/orchestrate/plan', () => {
   beforeEach(() => {
     setMockDelayForTests(0)
+    resetRateLimitForTests()
   })
 
   afterEach(() => {
     setMockDelayForTests()
+    resetRateLimitForTests()
+    resetEnvForTests()
+    vi.unstubAllEnvs()
   })
 
   it('合法请求返回 200 和契约响应', async () => {

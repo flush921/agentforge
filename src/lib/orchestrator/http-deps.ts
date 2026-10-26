@@ -14,6 +14,7 @@ import {
 } from '../contracts/api'
 import type { ApiError } from '../contracts/common'
 import type { Plan } from '../contracts/plan'
+import { getAccessCode, reportAccessRequired } from '../client/access'
 import type { RunState } from '../run/types'
 import { readNdjson } from '../stream/ndjson'
 
@@ -55,6 +56,7 @@ function isAbort(error: unknown, signal: AbortSignal): boolean {
 }
 
 async function responseError(response: Response): Promise<ApiError> {
+  if (response.status === 401) reportAccessRequired()
   try {
     return apiErrorBodySchema.parse(await response.json()).error
   } catch {
@@ -65,9 +67,10 @@ async function responseError(response: Response): Promise<ApiError> {
 export function createHttpDeps(options: HttpDepsOptions = {}): OrchestratorDeps {
   const baseUrl = (options.baseUrl ?? '').replace(/\/+$/, '')
   const fetchImpl = options.fetchImpl ?? fetch
+  const accessCode = options.accessCode ?? getAccessCode()
   const headers: Record<string, string> = { 'content-type': 'application/json' }
-  if (options.accessCode) {
-    headers['x-access-code'] = options.accessCode
+  if (accessCode) {
+    headers['x-access-code'] = accessCode
   }
 
   function init(body: unknown, signal: AbortSignal): RequestInit {

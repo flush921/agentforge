@@ -13,3 +13,7 @@ export function getEnv(): Env {
 
   return cachedEnv
 }
+
+export function resetEnvForTests(): void {
+  cachedEnv = undefined
+}

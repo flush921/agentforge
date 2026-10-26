@@ -14,6 +14,7 @@ const taskSchema = z.string().trim().min(1).max(4000)
 export const healthResponseSchema = z.strictObject({
   ok: z.literal(true),
   mode: z.enum(['mock', 'live']),
+  accessRequired: z.boolean(),
 })
 
 export const assistantGenerateRequestSchema = z.strictObject({

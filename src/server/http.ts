@@ -14,6 +14,11 @@ export async function readJson<T>(
   request: Request,
   schema: z.ZodType<T>,
 ): Promise<{ ok: true; data: T } | { ok: false; response: Response }> {
+  const contentLength = request.headers.get('content-length')
+  if (contentLength !== null && Number(contentLength) > MAX_BODY_LENGTH) {
+    return badRequest('请求格式不正确')
+  }
+
   const text = await request.text()
   if (text.length > MAX_BODY_LENGTH) {
     return badRequest('请求格式不正确')

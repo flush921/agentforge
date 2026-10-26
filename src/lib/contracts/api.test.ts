@@ -65,11 +65,13 @@ const cases: SchemaCase[] = [
   {
     name: 'healthResponseSchema',
     schema: healthResponseSchema,
-    valid: { ok: true, mode: 'mock' },
+    valid: { ok: true, mode: 'mock', accessRequired: false },
     invalid: [
-      { ok: false, mode: 'mock' },
-      { ok: true, mode: 'other' },
-      { ok: true, mode: 'mock', extra: true },
+      { ok: false, mode: 'mock', accessRequired: false },
+      { ok: true, mode: 'other', accessRequired: false },
+      { ok: true, mode: 'mock' },
+      { ok: true, mode: 'mock', accessRequired: 'yes' },
+      { ok: true, mode: 'mock', accessRequired: false, extra: true },
     ],
   },
   {

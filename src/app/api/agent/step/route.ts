@@ -8,9 +8,12 @@ import {
   type StepEvent,
 } from '@/lib/contracts/api'
 import { encodeNdjsonLine } from '@/lib/stream/ndjson'
+import { checkAccess } from '@/server/access'
+import { getEnv } from '@/server/env'
 import { jsonError, readJson } from '@/server/http'
 import { getLlm } from '@/server/llm'
 import { toApiError } from '@/server/llm/errors'
+import { checkRateLimit, getClientKey, rateLimitedResponse } from '@/server/rate-limit'
 import { runAgentStep } from '@/server/services/step'
 
 const ROUTE = '/api/agent/step'
@@ -18,6 +21,16 @@ const ROUTE = '/api/agent/step'
 export async function POST(request: Request): Promise<Response> {
   let body: { ok: true; data: AgentStepRequest } | { ok: false; response: Response }
   try {
+    const denied = checkAccess(request, getEnv())
+    if (denied) {
+      return denied
+    }
+
+    const limited = checkRateLimit('run', getClientKey(request))
+    if (!limited.ok) {
+      return rateLimitedResponse(limited.retryAfterSec)
+    }
+
     body = await readJson(request, agentStepRequestSchema)
   } catch (error) {
     const mapped = toApiError(error, request.signal, ROUTE)

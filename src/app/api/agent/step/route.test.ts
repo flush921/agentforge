@@ -1,7 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiErrorBodySchema, stepEventSchema, type StepEvent } from '@/lib/contracts/api'
 import { readNdjson } from '@/lib/stream/ndjson'
+import { resetEnvForTests } from '@/server/env'
 import { setMockDelayForTests } from '@/server/llm/mock'
+import { resetRateLimitForTests } from '@/server/rate-limit'
 import { postJson } from '@/test/http'
 import { makeReviewRequest, makeStepRequest } from '@/test/step'
 import { POST } from './route'
@@ -28,10 +30,14 @@ function expectTerminal(events: StepEvent[]): void {
 describe('POST /api/agent/step', () => {
   beforeEach(() => {
     setMockDelayForTests(0)
+    resetRateLimitForTests()
   })
 
   afterEach(() => {
     setMockDelayForTests()
+    resetRateLimitForTests()
+    resetEnvForTests()
+    vi.unstubAllEnvs()
   })
 
   it('非 JSON 请求返回 400 JSON 而不是流', async () => {
