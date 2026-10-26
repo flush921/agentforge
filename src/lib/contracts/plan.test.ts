@@ -42,6 +42,14 @@ const cases: SchemaCase[] = [
       { ...validAssessment, extra: true },
       { ...validAssessment, source: 'other' },
       { ...validAssessment, dims: { ...validAssessment.dims, tools: 3 } },
+      {
+        ...validAssessment,
+        guard: { blocked: false, reason: 'x', kind: 'crisis' },
+      },
+      { ...validAssessment, guard: { blocked: true, reason: '', kind: 'crisis' } },
+      { ...validAssessment, guard: { blocked: true, reason: 'x'.repeat(61), kind: 'crisis' } },
+      { ...validAssessment, guard: { blocked: true, reason: 'x', kind: 'other' } },
+      { ...validAssessment, guard: { blocked: true, reason: 'x', kind: 'crisis', extra: true } },
     ],
   },
   {
@@ -113,5 +121,15 @@ describe('plan schemas', () => {
 
   it('全空白字符串不合法', () => {
     expect(planNodeSchema.safeParse({ ...validNode, title: '   ' }).success).toBe(false)
+  })
+
+  it('guard 为可选字段，blocked 必须为字面量 true', () => {
+    expect(complexityAssessmentSchema.safeParse(validAssessment).success).toBe(true)
+    expect(
+      complexityAssessmentSchema.safeParse({
+        ...validAssessment,
+        guard: { blocked: true, reason: '检测到可能的心理危机信号', kind: 'crisis' },
+      }).success,
+    ).toBe(true)
   })
 })

@@ -36,6 +36,7 @@ exports[`buildPlanPrompt > L2 包含数据区、对应级别规则和工具清�
 领域：教育规划
 简介：帮你制定严谨的学习计划
 可用工具：datetime
+拒答话题：无
 </assistant>
 <assessment>
 各维度：subtasks=2, tools=1, parallel=2, rigor=1, length=1；理由：需要多方向调研并形成报告
@@ -83,6 +84,7 @@ exports[`buildPlanPrompt > L3 包含数据区、对应级别规则和工具清�
 领域：教育规划
 简介：帮你制定严谨的学习计划
 可用工具：datetime
+拒答话题：无
 </assistant>
 <assessment>
 各维度：subtasks=2, tools=1, parallel=2, rigor=1, length=1；理由：需要多方向调研并形成报告
@@ -130,6 +132,7 @@ exports[`buildPlanPrompt > L4 包含数据区、对应级别规则和工具清�
 领域：教育规划
 简介：帮你制定严谨的学习计划
 可用工具：datetime
+拒答话题：无
 </assistant>
 <assessment>
 各维度：subtasks=2, tools=1, parallel=2, rigor=1, length=1；理由：需要多方向调研并形成报告

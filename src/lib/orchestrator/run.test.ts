@@ -109,6 +109,48 @@ describe('评估与规划', () => {
     expect(state.status).toBe('completed')
   })
 
+  it('危机规则在本地拦截，不发 assess 请求且不进入规划', async () => {
+    const { deps, calls } = createFakeDeps()
+    const { events, state } = await execute(deps, { ...baseInput, task: '我不想活了' })
+
+    expect(calls.assess).toHaveLength(0)
+    expect(calls.plan).toHaveLength(0)
+    expect(calls.step).toHaveLength(0)
+    expect(events.map((event) => event.type)).toEqual([
+      'run.started',
+      'assess.started',
+      'assess.completed',
+      'run.completed',
+    ])
+    expect(state.assessment).toMatchObject({
+      source: 'rule',
+      guard: { blocked: true, kind: 'crisis' },
+    })
+    expect(state.plan).toBeUndefined()
+    expect(state.output).toContain('12356')
+    expect(state.warnings).toEqual(['已按安全护栏拒绝执行'])
+    expect(state.degraded).toBe(false)
+  })
+
+  it('服务端返回 policy 护栏时直接交付拒答，不执行计划', async () => {
+    const response = assessmentFor(4)
+    response.assessment.guard = {
+      blocked: true,
+      kind: 'policy',
+      reason: '涉及违规或危险内容',
+    }
+    const { deps, calls } = createFakeDeps({ assess: response })
+    const { events, state } = await execute(deps)
+
+    expect(calls.assess).toHaveLength(1)
+    expect(calls.plan).toHaveLength(0)
+    expect(calls.step).toHaveLength(0)
+    expect(events.some((event) => event.type === 'plan.started')).toBe(false)
+    expect(state.plan).toBeUndefined()
+    expect(state.output).toContain('涉及违规或危险内容')
+    expect(state.warnings).toEqual(['已按安全护栏拒绝执行'])
+  })
+
   it('03 L1 静态计划只使用 usableTools', async () => {
     const { deps, calls } = createFakeDeps({ assess: assessmentFor(1) })
     const { state } = await execute(deps)

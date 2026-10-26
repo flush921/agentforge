@@ -24,7 +24,13 @@ export function buildAssessPrompt(
 
 rationale 用一句不超过 40 字的中文，向用户说明最主要的判断依据，例如「需要多方向调研并形成严谨报告」。
 
-只输出一个 JSON 对象，格式：{"dims":{"subtasks":0,"tools":0,"parallel":0,"rigor":0,"length":0},"rationale":"..."}`
+安全判断（同时完成）：
+- 下列情况判 blocked=true：违法犯罪、伤害他人、危险物品制作、色情、侵犯他人隐私、作弊或代考，以及助手明确不应处理的话题（见数据区中的「拒答话题」）。
+- 普通的敏感话题（健康、心理、法律、金融等常识性咨询）不拦截，交由助手按专业边界回答。
+- blocked=true 时：reason 用不超过 30 字的中文说明原因，不要复述用户原话；属于「拒答话题」时 topic=true，其他情况为 false。
+- blocked=false 时：reason 为空字符串，topic 为 false。
+
+只输出一个 JSON 对象，格式：{"dims":{"subtasks":0,"tools":0,"parallel":0,"rigor":0,"length":0},"rationale":"...","guard":{"blocked":false,"reason":"","topic":false}}`
 
   return {
     instructions,

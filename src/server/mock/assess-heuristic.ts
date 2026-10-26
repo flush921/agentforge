@@ -23,6 +23,18 @@ const dimensionWords = {
   length: ['报告', '方案', '文章', '详细', '完整', '计划'],
 } as const
 
+const guardKeywords = ['代考', '作弊', '黑进', '破解密码', '炸药'] as const
+
+export interface MockGuardVerdict {
+  blocked: boolean
+  reason: string
+  topic: boolean
+}
+
+export type MockAssessResult = Omit<ComplexityAssessment, 'source' | 'guard'> & {
+  guard: MockGuardVerdict
+}
+
 function matchCount(task: string, words: readonly string[]): number {
   return words.filter((word) => task.includes(word)).length
 }
@@ -31,8 +43,11 @@ function score(count: number): DimScore {
   return Math.min(2, count) as DimScore
 }
 
-export function assessHeuristic(task: string): Omit<ComplexityAssessment, 'source'> {
+export function assessHeuristic(task: string): MockAssessResult {
   const normalized = task.trim()
+  const guard: MockGuardVerdict = guardKeywords.some((keyword) => normalized.includes(keyword))
+    ? { blocked: true, reason: '涉及违规或危险内容', topic: false }
+    : { blocked: false, reason: '', topic: false }
   const subtaskMatches = matchCount(normalized, dimensionWords.subtasks)
   const parallelBonus = /[两二三四五六七八九十\d]+\s*(个|款|所|家|种|项|方面)/.test(normalized)
     ? 1
@@ -53,5 +68,6 @@ export function assessHeuristic(task: string): Omit<ComplexityAssessment, 'sourc
       subtaskMatches === 0 && length === 0 && tools === 0
         ? '任务较直接，无需复杂协作'
         : '根据任务拆解、工具需求与产出规模估算',
+    guard,
   }
 }

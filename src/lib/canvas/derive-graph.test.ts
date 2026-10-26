@@ -290,4 +290,56 @@ describe('deriveGraph', () => {
 
     expect(graph.nodes.find((node) => node.id === 'sys:planner')?.status).toBe('skipped')
   })
+
+  it('护栏拦截：不显示 planner，router 标记 guarded 并直接连接交付', () => {
+    const events: RunEvent[] = [
+      {
+        seq: 0,
+        t: 0,
+        type: 'run.started',
+        runId: 'run-guarded',
+        assistantId: 'assistant-test',
+        task: '护栏测试',
+        intensity: 0.5,
+      },
+      { seq: 1, t: 5, type: 'assess.started' },
+      {
+        seq: 2,
+        t: 10,
+        type: 'assess.completed',
+        assessment: {
+          dims: { subtasks: 0, tools: 0, parallel: 0, rigor: 0, length: 0 },
+          rationale: '检测到可能的心理危机信号',
+          source: 'rule',
+          guard: {
+            blocked: true,
+            kind: 'crisis',
+            reason: '检测到可能的心理危机信号',
+          },
+        },
+        decision: { rawScore: 0, adjustment: 0, score: 0, level: 0, downgraded: false },
+      },
+      {
+        seq: 3,
+        t: 20,
+        type: 'run.completed',
+        output: '安全响应',
+        degraded: false,
+        usage: { inputTokens: 0, outputTokens: 0 },
+        durationMs: 20,
+        warnings: ['已按安全护栏拒绝执行'],
+      },
+    ]
+    const graph = deriveGraph(reduceEvents(events))
+
+    expect(graph.nodes.map((node) => node.id)).toEqual(['sys:task', 'sys:router', 'sys:output'])
+    expect(graph.nodes.find((node) => node.id === 'sys:router')).toMatchObject({
+      status: 'completed',
+      guarded: true,
+    })
+    expect(graph.edges.map((edge) => `${edge.source}->${edge.target}`)).toEqual([
+      'sys:task->sys:router',
+      'sys:router->sys:output',
+    ])
+  })
 })

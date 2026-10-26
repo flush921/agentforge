@@ -84,3 +84,21 @@ describe('assessHeuristic 计分规则', () => {
     expect(assessHeuristic('写一份报告').rationale).toBe('根据任务拆解、工具需求与产出规模估算')
   })
 })
+
+describe('assessHeuristic 护栏规则', () => {
+  it.each(['代考', '作弊', '黑进', '破解密码', '炸药'])('命中「%s」时返回 blocked', (keyword) => {
+    expect(assessHeuristic(`帮我${keyword}`).guard).toEqual({
+      blocked: true,
+      reason: '涉及违规或危险内容',
+      topic: false,
+    })
+  })
+
+  it('普通任务不拦截', () => {
+    expect(assessHeuristic('帮我制定一周复习计划').guard).toEqual({
+      blocked: false,
+      reason: '',
+      topic: false,
+    })
+  })
+})

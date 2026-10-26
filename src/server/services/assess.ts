@@ -2,13 +2,33 @@ import 'server-only'
 
 import type { AssistantSpec } from '@/lib/contracts/assistant'
 import { parseLlmOutput } from '@/lib/contracts/llm-output'
-import { complexityAssessmentSchema, type ComplexityAssessment } from '@/lib/contracts/plan'
+import {
+  complexityAssessmentSchema,
+  dimScoreSchema,
+  type ComplexityAssessment,
+} from '@/lib/contracts/plan'
 import { FALLBACK_ASSESSMENT, ruleAssess } from '@/lib/orchestrator/level'
+import { guardRule } from '@/lib/safety/guard'
 import type { LlmClient } from '@/server/llm/types'
 import { buildAssessPrompt } from '@/server/prompts/assess'
+import { z } from 'zod'
 import type { ServiceResult } from './types'
 
-const assessmentOutputSchema = complexityAssessmentSchema.omit({ source: true })
+const assessmentOutputSchema = z.strictObject({
+  dims: z.strictObject({
+    subtasks: dimScoreSchema,
+    tools: dimScoreSchema,
+    parallel: dimScoreSchema,
+    rigor: dimScoreSchema,
+    length: dimScoreSchema,
+  }),
+  rationale: complexityAssessmentSchema.shape.rationale,
+  guard: z.strictObject({
+    blocked: z.boolean(),
+    reason: z.string().max(60),
+    topic: z.boolean(),
+  }),
+})
 
 function isCancellation(error: unknown, signal: AbortSignal): boolean {
   return (
@@ -17,12 +37,31 @@ function isCancellation(error: unknown, signal: AbortSignal): boolean {
   )
 }
 
+function toAssessment(output: z.infer<typeof assessmentOutputSchema>): ComplexityAssessment {
+  const { guard, ...rest } = output
+  const assessment: ComplexityAssessment = { ...rest, source: 'llm' }
+  if (guard.blocked) {
+    const reason = guard.reason.trim()
+    assessment.guard = {
+      blocked: true,
+      kind: guard.topic ? 'topic' : 'policy',
+      reason: reason.length > 0 ? reason : '请求超出了助手的服务范围',
+    }
+  }
+  return assessment
+}
+
 export async function assessTask(
   llm: LlmClient,
   assistant: AssistantSpec,
   task: string,
   signal: AbortSignal,
 ): Promise<ServiceResult<ComplexityAssessment>> {
+  const guarded = guardRule(task)
+  if (guarded !== null) {
+    return { ok: true, value: guarded }
+  }
+
   const ruleResult = ruleAssess(task)
   if (ruleResult !== null) {
     return { ok: true, value: ruleResult }
@@ -35,7 +74,7 @@ export async function assessTask(
       instructions: built.instructions,
       messages: [{ role: 'user', content: built.user }],
       temperature: 0,
-      maxOutputTokens: 300,
+      maxOutputTokens: 400,
       signal,
     })
     const parsed = parseLlmOutput(assessmentOutputSchema, result.text)
@@ -43,7 +82,7 @@ export async function assessTask(
       return { ok: true, value: FALLBACK_ASSESSMENT }
     }
 
-    return { ok: true, value: { ...parsed.data, source: 'llm' } }
+    return { ok: true, value: toAssessment(parsed.data) }
   } catch (error) {
     if (isCancellation(error, signal)) {
       throw error

@@ -35,5 +35,7 @@ export function retryMessage(errors: string[]): string {
 export function assistantBrief(spec: AssistantSpec): string {
   const tools = usableTools(spec.capabilities)
   const available = tools.length > 0 ? tools.join('、') : '无'
-  return `名称：${spec.name}\n领域：${spec.domain}\n简介：${spec.tagline}\n可用工具：${available}`
+  const refuse =
+    spec.guardrails.refuseTopics.length > 0 ? spec.guardrails.refuseTopics.join('、') : '无'
+  return `名称：${spec.name}\n领域：${spec.domain}\n简介：${spec.tagline}\n可用工具：${available}\n拒答话题：${refuse}`
 }

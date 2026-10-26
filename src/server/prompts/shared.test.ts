@@ -33,11 +33,12 @@ describe('retryMessage', () => {
 })
 
 describe('assistantBrief', () => {
-  it('只包含名称、领域、简介和实际可用工具四行', () => {
+  it('包含名称、领域、简介、可用工具与拒答话题五行', () => {
     const brief = assistantBrief(testAssistant)
-    expect(brief.split('\n')).toHaveLength(4)
+    expect(brief.split('\n')).toHaveLength(5)
     expect(brief).toContain('名称：学习助手')
     expect(brief).toContain('可用工具：datetime')
+    expect(brief).toContain('拒答话题：无')
     expect(brief).not.toContain('web_search')
     expect(brief).not.toContain(testAssistant.persona)
   })
@@ -47,5 +48,13 @@ describe('assistantBrief', () => {
     expect(assistantBrief({ ...testAssistant, capabilities: ['web_search'] })).toContain(
       '可用工具：无',
     )
+  })
+
+  it('拒答话题用顿号连接', () => {
+    const brief = assistantBrief({
+      ...testAssistant,
+      guardrails: { refuseTopics: ['医疗处方', '投资建议'] },
+    })
+    expect(brief).toContain('拒答话题：医疗处方、投资建议')
   })
 })

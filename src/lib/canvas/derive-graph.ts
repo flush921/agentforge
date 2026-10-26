@@ -9,6 +9,7 @@ export interface GraphNode {
   status: GraphStatus
   /** 指向计划节点 id：计划节点为自身 id，sys:output 为 outputNodeId */
   ref?: string
+  guarded?: boolean
 }
 
 export type GraphEdgeKind = 'flow' | 'feedback' | 'fallback'
@@ -82,8 +83,14 @@ export function deriveGraph(state: RunState): Graph {
   const nodes: GraphNode[] = [{ id: 'sys:task', kind: 'task', status: 'completed' }]
   const edges: GraphEdge[] = []
 
-  const hasPlanner = (state.decision?.level ?? 0) >= 2
-  nodes.push({ id: 'sys:router', kind: 'router', status: routerStatus(state) })
+  const guarded = state.assessment?.guard !== undefined
+  const hasPlanner = !guarded && (state.decision?.level ?? 0) >= 2
+  nodes.push({
+    id: 'sys:router',
+    kind: 'router',
+    status: routerStatus(state),
+    ...(guarded ? { guarded: true } : {}),
+  })
   if (hasPlanner) {
     nodes.push({ id: 'sys:planner', kind: 'planner', status: plannerStatus(state) })
   }
@@ -157,20 +164,24 @@ export function deriveGraph(state: RunState): Graph {
     }
   }
 
-  if (state.plan && state.outputNodeId) {
+  if ((state.plan && state.outputNodeId) || guarded) {
     nodes.push({
       id: 'sys:output',
       kind: 'output',
       status: outputStatus(state),
-      ref: state.outputNodeId,
+      ...(state.outputNodeId !== undefined ? { ref: state.outputNodeId } : {}),
     })
     statusById.set('sys:output', outputStatus(state))
 
-    const gateId = [...state.nodeOrder]
-      .reverse()
-      .find((nodeId) => state.nodes[nodeId]?.node.reviewTarget === state.outputNodeId)
-    const source = gateId ? `n:${gateId}` : `n:${state.outputNodeId}`
-    pushEdge(source, 'sys:output', 'flow')
+    if (guarded) {
+      pushEdge('sys:router', 'sys:output', 'flow')
+    } else if (state.outputNodeId !== undefined) {
+      const gateId = [...state.nodeOrder]
+        .reverse()
+        .find((nodeId) => state.nodes[nodeId]?.node.reviewTarget === state.outputNodeId)
+      const source = gateId ? `n:${gateId}` : `n:${state.outputNodeId}`
+      pushEdge(source, 'sys:output', 'flow')
+    }
   }
 
   for (const edge of edges) {

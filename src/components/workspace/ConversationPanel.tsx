@@ -1,6 +1,14 @@
 'use client'
 
-import { CheckCircle2, Clock3, Loader2, MinusCircle, TriangleAlert, XCircle } from 'lucide-react'
+import {
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  MinusCircle,
+  ShieldAlert,
+  TriangleAlert,
+  XCircle,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/markdown/Markdown'
 import type { AssistantSpec } from '@/lib/contracts/assistant'
@@ -193,6 +201,15 @@ function SessionView({
             : null}
           {state.status === 'completed' ? (
             <div className="mt-3">
+              {state.warnings.length > 0 && state.plan === undefined ? (
+                <div
+                  data-guard-blocked="true"
+                  className="mb-3 flex items-center gap-2 rounded-lg border border-warning/25 bg-warning/10 p-3 text-sm font-medium text-warning"
+                >
+                  <ShieldAlert className="size-4 shrink-0" aria-hidden />
+                  安全护栏已拦截
+                </div>
+              ) : null}
               {state.output !== undefined ? <Markdown>{state.output}</Markdown> : null}
               {state.degraded ? <p className="mt-3 text-xs text-warning">本次为降级交付</p> : null}
               {state.warnings.length > 0 ? (

@@ -5,6 +5,7 @@ import type { RunEvent, RunEventBody } from '../contracts/events'
 import type { ComplexityAssessment, LevelDecision, Plan, PlanNode } from '../contracts/plan'
 import { applyEvent, initialRunState } from '../run/reducer'
 import type { NodeState, RunState } from '../run/types'
+import { buildGuardMessage, guardRule } from '../safety/guard'
 import type { OrchestratorDeps } from './http-deps'
 import { nextNodeId } from './ids'
 import { buildStaticPlan, decideLevel, FALLBACK_ASSESSMENT, LEVELS, ruleAssess } from './level'
@@ -119,7 +120,10 @@ function cancel(ctx: Context): void {
 async function assess(
   ctx: Context,
 ): Promise<{ assessment: ComplexityAssessment; decision: LevelDecision }> {
-  let assessment = ruleAssess(ctx.input.task)
+  let assessment = guardRule(ctx.input.task)
+  if (assessment === null) {
+    assessment = ruleAssess(ctx.input.task)
+  }
   if (assessment === null) {
     try {
       const response = await ctx.deps.assess(
@@ -660,6 +664,12 @@ export async function runOrchestration(
     const evaluation = await assess(ctx)
     throwIfAborted(ctx)
     if (isTerminal(ctx)) {
+      return ctx.state
+    }
+    const guard = evaluation.assessment.guard
+    if (guard?.blocked) {
+      warn(ctx, '已按安全护栏拒绝执行')
+      complete(ctx, buildGuardMessage(input.assistant, guard), false)
       return ctx.state
     }
     await plan(ctx, evaluation.assessment, evaluation.decision)

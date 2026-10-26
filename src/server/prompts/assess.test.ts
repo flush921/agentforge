@@ -13,6 +13,8 @@ describe('buildAssessPrompt', () => {
     expect(result.instructions).toContain('只输出一个 JSON 对象')
     expect(result.instructions).toContain('subtasks 子任务数')
     expect(result.instructions).toContain('rigor 严谨要求')
+    expect(result.instructions).toContain('安全判断（同时完成）')
+    expect(result.instructions).toContain('"guard":{"blocked":false,"reason":"","topic":false}')
   })
 
   it('固定输入快照', () => {

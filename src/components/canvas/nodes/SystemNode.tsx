@@ -21,7 +21,11 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
 
   if (graphNode.kind === 'router') {
     title = '评估定级'
-    detail = level === undefined ? '评估中' : `L${level} · ${LEVELS[level].label}`
+    detail = graphNode.guarded
+      ? '已拦截'
+      : level === undefined
+        ? '评估中'
+        : `L${level} · ${LEVELS[level].label}`
   } else if (graphNode.kind === 'planner') {
     title = '规划'
     detail =
@@ -88,7 +92,11 @@ export const SystemNode = memo(SystemNodeView, (previous, next) => {
   if (a.graphNode.kind !== b.graphNode.kind) return false
   if (a.graphNode.kind === 'task') return a.runState.task === b.runState.task
   if (a.graphNode.kind === 'router') {
-    return a.runState.status === b.runState.status && a.runState.decision === b.runState.decision
+    return (
+      a.graphNode.guarded === b.graphNode.guarded &&
+      a.runState.status === b.runState.status &&
+      a.runState.decision === b.runState.decision
+    )
   }
   if (a.graphNode.kind === 'planner') {
     return (

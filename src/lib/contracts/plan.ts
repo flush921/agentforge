@@ -20,6 +20,13 @@ export const complexityAssessmentSchema = z.strictObject({
   }),
   rationale: z.string().trim().min(1).max(80),
   source: z.enum(['rule', 'llm', 'fallback']),
+  guard: z
+    .strictObject({
+      blocked: z.literal(true),
+      reason: z.string().trim().min(1).max(60),
+      kind: z.enum(['crisis', 'policy', 'topic']),
+    })
+    .optional(),
 })
 
 export const levelDecisionSchema = z.strictObject({
