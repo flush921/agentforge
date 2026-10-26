@@ -49,6 +49,17 @@ describe('agentSummary', () => {
     expect(summary).toEqual({ text: '第二段还在写', tone: 'normal', streaming: true })
   })
 
+  it.each([
+    ['## 环节', '环节'],
+    ['前文\n###', '前文'],
+    ['| a | b |', 'a | b |'],
+    ['1. 第一步', '第一步'],
+    ['###', '撰写中…'],
+    ['###\n| \n1.\n##', '撰写中…'],
+  ])('running 清理行首 Markdown 标记：%s', (text, expected) => {
+    expect(agentSummary(nodeState({ status: 'running', text })).text).toBe(expected)
+  })
+
   it('running 只有 reasoning：「思考中…」', () => {
     const summary = agentSummary(nodeState({ status: 'running', reasoning: '先想想' }))
     expect(summary).toEqual({ text: '思考中…', tone: 'normal', streaming: false })

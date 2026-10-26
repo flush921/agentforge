@@ -26,10 +26,10 @@ function truncateStart(text: string): string {
   return `…${text.slice(-MAX_SUMMARY_LENGTH)}`
 }
 
-function lastNonEmptyLine(text: string): string {
+function lastContentLine(text: string): string {
   const lines = text.split('\n')
   for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i]?.trim()
+    const line = (lines[i] ?? '').replace(/^(?:[#>*|\s-]|\d+\.)+/, '').trim()
     if (line) {
       return line
     }
@@ -63,9 +63,13 @@ export function agentSummary(ns: NodeState): AgentSummary {
       return { text: `调用 ${inFlight.tool}…`, tone: 'normal', streaming: false }
     }
 
-    const line = lastNonEmptyLine(ns.text)
+    const line = lastContentLine(ns.text)
     if (line) {
       return { text: truncateStart(line), tone: 'normal', streaming: true }
+    }
+
+    if (ns.text.trim()) {
+      return { text: '撰写中…', tone: 'normal', streaming: false }
     }
 
     if (ns.reasoning.trim()) {
