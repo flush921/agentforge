@@ -88,7 +88,6 @@ export function createRunController({
         controller.signal,
       )
       const current = useRunStore.getState()
-      current.setPhase('done')
       current.setPendingPlan(undefined)
       if (finalState.runId !== null && finalState.assistantId !== null) {
         const record: RunRecord = {
@@ -108,6 +107,7 @@ export function createRunController({
           console.warn('[storage] 保存运行记录失败')
         }
       }
+      current.setPhase('done')
     } catch {
       const current = useRunStore.getState()
       current.setPhase('done')

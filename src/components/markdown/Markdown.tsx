@@ -4,8 +4,10 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const components: Components = {
-  a({ node: _node, ...props }) {
-    return <a {...props} target="_blank" rel="noopener noreferrer" />
+  a(props) {
+    const anchorProps = { ...props }
+    delete anchorProps.node
+    return <a {...anchorProps} target="_blank" rel="noopener noreferrer" />
   },
 }
 
