@@ -1,17 +1,15 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { List, Pause, Play, Workflow } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Workflow } from 'lucide-react'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { RunCanvas, type CameraMode } from '@/components/canvas/RunCanvas'
 import { NodeDrawer } from '@/components/run/NodeDrawer'
+import { ReplayControls } from '@/components/run/ReplayControls'
 import { RunHeader } from '@/components/run/RunHeader'
 import { RunNodeList } from '@/components/run/RunNodeList'
-import { formatDuration } from '@/lib/canvas/format'
 import { sampleRunL0, sampleRunL4 } from '@/lib/fixtures/runs'
 import { useReplay } from '@/hooks/use-replay'
-import { cn } from '@/lib/utils'
 
 export type CanvasSample = 'l0' | 'l4'
 
@@ -77,88 +75,7 @@ export function DevCanvasClient({
             </div>
           </header>
 
-          <section
-            aria-label="回放控制"
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-panel/70 px-2.5 py-2"
-          >
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={replay.playing ? '暂停回放' : '播放回放'}
-                  />
-                }
-                onClick={replay.playing ? replay.pause : replay.play}
-              >
-                {replay.playing ? <Pause aria-hidden /> : <Play aria-hidden />}
-              </TooltipTrigger>
-              <TooltipContent>{replay.playing ? '暂停回放' : '播放回放'}</TooltipContent>
-            </Tooltip>
-            <div
-              className="flex rounded-lg border border-border bg-background/45 p-0.5"
-              aria-label="回放速度"
-            >
-              {([1, 2, 4] as const).map((speed) => (
-                <button
-                  key={speed}
-                  type="button"
-                  aria-pressed={replay.speed === speed}
-                  onClick={() => replay.setSpeed(speed)}
-                  className={cn(
-                    'h-6 min-w-8 rounded-md px-1.5 font-mono text-[10px] text-text-secondary outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-brand',
-                    replay.speed === speed && 'bg-secondary text-brand',
-                  )}
-                >
-                  {speed}×
-                </button>
-              ))}
-            </div>
-            <input
-              type="range"
-              aria-label="回放时间"
-              min={0}
-              max={Math.max(replay.duration, 1)}
-              step={10}
-              value={replay.t}
-              onChange={(event) => replay.seek(Number(event.target.value))}
-              className="mx-1 h-1.5 min-w-[140px] flex-1 cursor-pointer accent-brand"
-            />
-            <span className="w-[92px] text-right font-mono text-[10px] text-text-secondary">
-              {formatDuration(replay.t)} / {formatDuration(replay.duration)}
-            </span>
-            <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
-            <div
-              className="flex rounded-lg border border-border bg-background/45 p-0.5"
-              aria-label="视图切换"
-            >
-              <button
-                type="button"
-                aria-pressed={view === 'canvas'}
-                onClick={() => setView('canvas')}
-                className={cn(
-                  'flex h-6 items-center gap-1 rounded-md px-2 text-[10px] text-text-secondary outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-brand',
-                  view === 'canvas' && 'bg-secondary text-brand',
-                )}
-              >
-                <Workflow className="size-3" aria-hidden />
-                画布
-              </button>
-              <button
-                type="button"
-                aria-pressed={view === 'list'}
-                onClick={() => setView('list')}
-                className={cn(
-                  'flex h-6 items-center gap-1 rounded-md px-2 text-[10px] text-text-secondary outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-brand',
-                  view === 'list' && 'bg-secondary text-brand',
-                )}
-              >
-                <List className="size-3" aria-hidden />
-                列表
-              </button>
-            </div>
-          </section>
+          <ReplayControls replay={replay} view={view} onViewChange={setView} />
 
           <RunHeader state={replay.state} time={replay.t} />
           <div className="min-h-0 flex-1">

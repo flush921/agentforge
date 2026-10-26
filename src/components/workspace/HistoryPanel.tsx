@@ -103,11 +103,9 @@ export const HistoryPanel = memo(function HistoryPanel({
     setError(null)
     try {
       await deleteRun(runId)
-      setRuns((current) => {
-        const next = current.filter((run) => run.runId !== runId)
-        onCountChange(next.length)
-        return next
-      })
+      const remaining = runs.filter((run) => run.runId !== runId)
+      setRuns(remaining)
+      onCountChange(remaining.length)
     } catch {
       setError('删除失败，请重试')
     } finally {
@@ -179,7 +177,7 @@ export const HistoryPanel = memo(function HistoryPanel({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      disabled={deletingId === run.runId}
+                      disabled={deletingId !== null}
                       aria-label={`删除运行记录 ${run.task.slice(0, 30)}`}
                       className="mt-1 shrink-0 text-ink-muted hover:text-danger"
                       onClick={() => setDeleteTarget(run)}
