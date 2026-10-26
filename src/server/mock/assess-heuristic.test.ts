@@ -79,6 +79,17 @@ describe('assessHeuristic 计分规则', () => {
     expect(assessHeuristic(`报告${'问'.repeat(28)}`).dims.length).toBe(2)
   })
 
+  it('数值计算意图补充 tools 评分并可进入 L1', () => {
+    const assessment = assessHeuristic(
+      '某产品单价 128 元，打 85 折后满 300 减 40，买 3 件实付多少？',
+    )
+    expect(assessment.dims.tools).toBe(1)
+    expect(decideLevel(assessment.dims, 0.7, true).level).toBe(1)
+    expect(
+      assessHeuristic('我月薪 12000，每月存 25%，年化 2% 复利存 3 年大约多少钱？').dims.tools,
+    ).toBe(1)
+  })
+
   it('rationale 保持简单任务与复杂任务的区分', () => {
     expect(assessHeuristic('讲一个笑话').rationale).toBe('任务较直接，无需复杂协作')
     expect(assessHeuristic('写一份报告').rationale).toBe('根据任务拆解、工具需求与产出规模估算')

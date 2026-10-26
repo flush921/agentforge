@@ -53,7 +53,11 @@ export function assessHeuristic(task: string): MockAssessResult {
     ? 1
     : 0
   const lengthBonus = normalized.length >= 30 ? 1 : 0
-  const tools = score(matchCount(normalized, dimensionWords.tools))
+  const hasArithmeticIntent =
+    /(?:\d+(?:\.\d+)?\s*(?:元|%|折)|单价|折后|满\s*\d+(?:\.\d+)?\s*减|年化|复利|实付)/.test(
+      normalized,
+    )
+  const tools = score(matchCount(normalized, dimensionWords.tools) + (hasArithmeticIntent ? 1 : 0))
   const length = score(matchCount(normalized, dimensionWords.length) + lengthBonus)
 
   return {
