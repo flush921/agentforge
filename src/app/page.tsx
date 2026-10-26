@@ -1,17 +1,26 @@
-import { Button } from '@/components/ui/button'
+import { Workflow } from 'lucide-react'
+import { SiteHeader } from '@/components/site/SiteHeader'
+import { HomeClient } from './HomeClient'
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 text-text-primary">
-      <section className="w-full max-w-xl rounded-2xl border border-border bg-panel p-10 text-center shadow-2xl shadow-black/20 sm:p-14">
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">AgentForge</h1>
-        <p className="mt-4 text-base text-text-secondary sm:text-lg">
-          一句话生成你的专属 AI 助手（开发中）
-        </p>
-        <Button className="mt-8" disabled>
-          开发中
-        </Button>
-      </section>
-    </main>
+    <div className="min-h-screen bg-background text-text-primary">
+      <SiteHeader libraryHref="#library" />
+      <main className="mx-auto w-full max-w-[1080px] px-4 pb-16 sm:px-6">
+        <section className="mx-auto max-w-3xl pb-8 pt-10 text-center">
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1 text-[10px] tracking-wide text-brand">
+            <Workflow className="size-3.5" aria-hidden />
+            按需编排 · 让每一个任务都有合适的团队
+          </div>
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            一句话，生成你的专属 <span className="text-brand">AI 助手</span>
+          </h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
+            它会按任务难度，自动调度 1 到 N 个 Agent 协作完成，并把整个过程画给你看
+          </p>
+        </section>
+        <HomeClient />
+      </main>
+    </div>
   )
 }
