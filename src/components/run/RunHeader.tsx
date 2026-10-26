@@ -125,7 +125,7 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
       {state.assessment !== undefined ? (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-2 border-t border-border/60 pt-2 text-[11px]">
           <span className="text-text-secondary">{state.assessment.rationale}</span>
-          {decision !== undefined ? (
+          {decision !== undefined && guard === undefined ? (
             <span className="text-ink-muted">
               得分 {decision.rawScore} {decision.adjustment >= 0 ? '+' : ''}
               {decision.adjustment} = {decision.score}

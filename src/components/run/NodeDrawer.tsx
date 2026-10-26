@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { Check, Wrench, X } from 'lucide-react'
+import { Markdown } from '@/components/markdown/Markdown'
 import { formatTokens, roleInfo } from '@/lib/canvas/format'
 import type { RunState } from '@/lib/run/types'
 import { cn } from '@/lib/utils'
@@ -131,9 +132,11 @@ export function NodeDrawer({
                 </DrawerSection>
               ) : null}
               <DrawerSection title="产出">
-                <div className="max-h-80 overflow-y-auto rounded-lg border border-border/70 bg-background/45 p-3 text-xs leading-6 whitespace-pre-wrap text-text-primary">
-                  {nodeState.output ??
-                    (nodeState.text.length > 0 ? nodeState.text : '尚未产生内容')}
+                <div className="max-h-80 overflow-y-auto rounded-lg border border-border/70 bg-background/45 p-3 text-xs leading-6 text-text-primary">
+                  <Markdown>
+                    {nodeState.output ??
+                      (nodeState.text.length > 0 ? nodeState.text : '尚未产生内容')}
+                  </Markdown>
                 </div>
               </DrawerSection>
               {nodeState.review !== undefined ? (

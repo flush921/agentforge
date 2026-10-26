@@ -67,7 +67,7 @@ function conversation(state: RunState): string {
 }
 
 describe('guard 展示', () => {
-  it('crisis RunHeader 显示我们在这里并隐藏级别、数量和预算及警告', () => {
+  it('crisis RunHeader 显示我们在这里并隐藏级别、数量、预算、得分及警告', () => {
     const state = guardedState('crisis')
     const html = renderToStaticMarkup(<RunHeader state={state} />)
 
@@ -75,11 +75,12 @@ describe('guard 展示', () => {
     expect(html).not.toContain('L0')
     expect(html).not.toContain('子 Agent')
     expect(html).not.toContain('TOKEN 预算')
+    expect(html).not.toContain('得分')
     expect(html).not.toContain('运行警告')
     expect(state.warnings).toEqual(['已按安全护栏拒绝执行'])
   })
 
-  it('policy RunHeader 显示安全拦截并保留警告', () => {
+  it('policy RunHeader 显示安全拦截并保留警告、隐藏得分', () => {
     const html = renderToStaticMarkup(<RunHeader state={guardedState('policy')} />)
 
     expect(html).toContain('安全拦截')
@@ -87,13 +88,14 @@ describe('guard 展示', () => {
     expect(html).not.toContain('L0')
     expect(html).not.toContain('子 Agent')
     expect(html).not.toContain('TOKEN 预算')
+    expect(html).not.toContain('得分')
   })
 
-  it('crisis 对话区使用 brand 横幅且不渲染运行警告', () => {
+  it('crisis 对话区使用 brand 横幅且状态行不重复显示 chip', () => {
     const html = conversation(guardedState('crisis'))
 
     expect(html).toContain('data-guard-kind="crisis"')
-    expect(html).toContain('我们在这里')
+    expect(html.match(/我们在这里/g)).toHaveLength(1)
     expect(html).toContain('text-brand')
     expect(html).not.toContain('安全护栏已拦截')
     expect(html).not.toContain('运行警告')

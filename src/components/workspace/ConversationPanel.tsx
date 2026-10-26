@@ -178,21 +178,12 @@ function SessionView({
               )}
               {current && phase === 'awaiting_confirm' ? '等待确认' : statusLabels[state.status]}
             </span>
-            {guard !== undefined ? (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 font-medium',
-                  isCrisis ? 'text-brand' : 'text-warning',
-                )}
-              >
-                {isCrisis ? (
-                  <HeartHandshake className="size-3.5" aria-hidden />
-                ) : (
-                  <ShieldAlert className="size-3.5" aria-hidden />
-                )}
-                {isCrisis ? '我们在这里' : '安全拦截'}
+            {guard !== undefined && !isCrisis ? (
+              <span className="inline-flex items-center gap-1 font-medium text-warning">
+                <ShieldAlert className="size-3.5" aria-hidden />
+                安全拦截
               </span>
-            ) : state.level !== undefined ? (
+            ) : guard === undefined && state.level !== undefined ? (
               <span className="font-mono text-brand">L{state.level}</span>
             ) : null}
             {guard === undefined && state.nodeOrder.length > 0 ? (
