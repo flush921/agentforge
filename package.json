@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:live": "vitest run --config vitest.live.config.mts",
+    "eval:route": "vitest run --config vitest.live.config.mts src/server/live/route-eval.live.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run typecheck && npm run test && npm run format:check"
