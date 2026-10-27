@@ -11,6 +11,7 @@ import { draftToSpec } from '@/lib/assistant/create-spec'
 import { generateAssistant } from '@/lib/client/api'
 import type { AssistantDraft, AssistantSpec } from '@/lib/contracts/assistant'
 import { PRESET_ASSISTANTS } from '@/lib/fixtures/preset-assistants'
+import { newId } from '@/lib/ids/uuid'
 import { ApiRequestError } from '@/lib/orchestrator/http-deps'
 import { deleteAssistant, listAssistants, saveAssistant } from '@/lib/storage/assistants'
 
@@ -104,7 +105,7 @@ export function HomeClient() {
     setSaveError(null)
     try {
       const spec = draftToSpec(draft, sourcePrompt, {
-        id: crypto.randomUUID(),
+        id: newId(),
         now: new Date().toISOString(),
       })
       await saveAssistant(spec)

@@ -15,6 +15,7 @@ import {
 import type { ApiError } from '../contracts/common'
 import type { Plan } from '../contracts/plan'
 import { getAccessCode, reportAccessRequired } from '../client/access'
+import { newId } from '../ids/uuid'
 import type { RunState } from '../run/types'
 import { readNdjson } from '../stream/ndjson'
 
@@ -169,6 +170,6 @@ export function createHttpDeps(options: HttpDepsOptions = {}): OrchestratorDeps 
         signal.addEventListener('abort', onAbort, { once: true })
       })
     },
-    newRunId: () => crypto.randomUUID(),
+    newRunId: () => newId(),
   }
 }
