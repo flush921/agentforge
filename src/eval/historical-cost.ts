@@ -9,7 +9,7 @@ export interface LevelCostSample {
 }
 
 export interface HistoricalCostSample extends LevelCostSample {
-  source: 'T11' | 'T13'
+  source: 'T11' | 'T13' | 'T15'
   id: string
 }
 

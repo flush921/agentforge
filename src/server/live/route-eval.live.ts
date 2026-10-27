@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { AssistantSpec } from '@/lib/contracts/assistant'
@@ -6,12 +6,10 @@ import type { Usage } from '@/lib/contracts/common'
 import { PRESET_ASSISTANTS } from '@/lib/fixtures/preset-assistants'
 import { decideLevel } from '@/lib/orchestrator/level'
 import { usableTools } from '@/lib/orchestrator/tools'
-import {
-  parseT11CostEvents,
-  parseT13CostResults,
-  type HistoricalCostSample,
-} from '@/eval/historical-cost'
+import { parseEvalConfig } from '@/eval/eval-config'
+import { readHistoricalCosts } from '@/eval/historical-cost-io'
 import { GUARD_CASES, ROUTE_CASES, type EvalPresetId } from '@/eval/route-dataset'
+import { ROUTE_HOLDOUT } from '@/eval/route-holdout'
 import {
   buildRouteReport,
   type AssessmentRound,
@@ -23,8 +21,8 @@ import { getLlm } from '@/server/llm'
 import type { LlmClient } from '@/server/llm/types'
 import { assessTask } from '@/server/services/assess'
 
-const reportDir = path.resolve(process.cwd(), '../collab/reports/eval/T14')
-const historicalDir = path.resolve(process.cwd(), '../collab/reports/live')
+const config = parseEvalConfig(process.env)
+const reportDir = path.resolve(process.cwd(), '../collab/reports/eval/T15', config.tag)
 const describeLive = process.env.LLM_MODE === 'live' ? describe : describe.skip
 
 interface EvaluationJob {
@@ -42,26 +40,6 @@ function assertSafeText(text: string): void {
   }
 }
 
-async function readJson(filePath: string): Promise<unknown> {
-  return JSON.parse(await readFile(filePath, 'utf8')) as unknown
-}
-
-async function readHistoricalCosts(): Promise<HistoricalCostSample[]> {
-  const samples: HistoricalCostSample[] = []
-  const t11Dir = path.join(historicalDir, 'T11')
-  const filenames = (await readdir(t11Dir)).filter((name) => name.endsWith('.json')).sort()
-  for (const filename of filenames) {
-    const sample = parseT11CostEvents(await readJson(path.join(t11Dir, filename)))
-    samples.push({ source: 'T11', id: filename.replace(/\.json$/, ''), ...sample })
-  }
-
-  const t13Results = parseT13CostResults(
-    await readJson(path.join(historicalDir, 'T13/results.json')),
-  )
-  for (const sample of t13Results) samples.push({ source: 'T13', ...sample })
-  return samples
-}
-
 function presetFor(presetId: EvalPresetId): AssistantSpec {
   const preset = PRESET_ASSISTANTS.find((item) => item.id === presetId)
   if (preset === undefined) throw new Error(`缺少评测 preset：${presetId}`)
@@ -69,8 +47,11 @@ function presetFor(presetId: EvalPresetId): AssistantSpec {
 }
 
 function prepareJobs() {
-  const routes: RouteEvalResult[] = ROUTE_CASES.map((item) => ({ ...item, rounds: [] }))
-  const guards: GuardEvalResult[] = GUARD_CASES.map((item) => ({ ...item, rounds: [] }))
+  const routeCases = config.set === 'holdout' ? ROUTE_HOLDOUT : ROUTE_CASES
+  const routes: RouteEvalResult[] = routeCases.map((item) => ({ ...item, rounds: [] }))
+  const guards: GuardEvalResult[] = config.guard
+    ? GUARD_CASES.map((item) => ({ ...item, rounds: [] }))
+    : []
   const jobs: EvaluationJob[] = []
   for (const result of routes) {
     const preset = presetFor(result.presetId)
@@ -82,10 +63,10 @@ function prepareJobs() {
   return { routes, guards, jobs }
 }
 
-describeLive('T14 路由真实评测', () => {
-  it('串行完成 60 次路由预测和 8 次护栏评估', async () => {
+describeLive(`T15 路由真实评测 ${config.tag}`, () => {
+  it(`串行完成 ${config.set} 路由预测${config.guard ? '和护栏评估' : ''}`, async () => {
     const { routes, guards, jobs } = prepareJobs()
-    expect(jobs).toHaveLength(68)
+    expect(jobs).toHaveLength(config.guard ? 68 : 60)
     const costSamples = await readHistoricalCosts()
     await mkdir(reportDir, { recursive: true })
     const llm = getLlm()
@@ -150,11 +131,13 @@ describeLive('T14 路由真实评测', () => {
       ),
       startedAt,
       completedAt: new Date().toISOString(),
+      evalSet: config.set,
+      evalTag: config.tag,
       routes,
       guards,
       costSamples,
     }
-    expect(artifact.assessmentCalls).toBe(68)
+    expect(artifact.assessmentCalls).toBe(config.guard ? 68 : 60)
     expect(routes.every((item) => item.rounds.length === 2)).toBe(true)
     expect(guards.every((item) => item.rounds.length === 1)).toBe(true)
 
@@ -166,6 +149,6 @@ describeLive('T14 路由真实评测', () => {
       writeFile(path.join(reportDir, 'raw.json'), rawJson, 'utf8'),
       writeFile(path.join(reportDir, 'report.md'), report, 'utf8'),
     ])
-    console.log(`已完成 ${assessmentCalls} 次评估，报告写入 collab/reports/eval/T14/`)
+    console.log(`已完成 ${assessmentCalls} 次评估，报告写入 collab/reports/eval/T15/${config.tag}/`)
   })
 })
