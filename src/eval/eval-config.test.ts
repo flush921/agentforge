@@ -5,6 +5,7 @@ describe('parseEvalConfig', () => {
   it.each([
     { env: { EVAL_SET: 'dev', EVAL_TAG: 'dev-v13', EVAL_GUARD: '0' }, guard: false },
     { env: { EVAL_SET: 'holdout', EVAL_TAG: 'holdout-v13', EVAL_GUARD: '1' }, guard: true },
+    { env: { EVAL_SET: 'holdout2', EVAL_TAG: 'holdout2-final', EVAL_GUARD: '1' }, guard: true },
   ])('解析 $env.EVAL_SET / guard=$env.EVAL_GUARD', ({ env, guard }) => {
     expect(parseEvalConfig(env)).toEqual({ set: env.EVAL_SET, tag: env.EVAL_TAG, guard })
   })

@@ -10,6 +10,7 @@ import { parseEvalConfig } from '@/eval/eval-config'
 import { readHistoricalCosts } from '@/eval/historical-cost-io'
 import { GUARD_CASES, ROUTE_CASES, type EvalPresetId } from '@/eval/route-dataset'
 import { ROUTE_HOLDOUT } from '@/eval/route-holdout'
+import { ROUTE_HOLDOUT2 } from '@/eval/route-holdout2'
 import {
   buildRouteReport,
   type AssessmentRound,
@@ -22,7 +23,8 @@ import type { LlmClient } from '@/server/llm/types'
 import { assessTask } from '@/server/services/assess'
 
 const config = parseEvalConfig(process.env)
-const reportDir = path.resolve(process.cwd(), '../collab/reports/eval/T15', config.tag)
+const series = config.set === 'holdout2' ? 'T16' : 'T15'
+const reportDir = path.resolve(process.cwd(), '../collab/reports/eval', series, config.tag)
 const describeLive = process.env.LLM_MODE === 'live' ? describe : describe.skip
 
 interface EvaluationJob {
@@ -47,7 +49,8 @@ function presetFor(presetId: EvalPresetId): AssistantSpec {
 }
 
 function prepareJobs() {
-  const routeCases = config.set === 'holdout' ? ROUTE_HOLDOUT : ROUTE_CASES
+  const routeCases =
+    config.set === 'dev' ? ROUTE_CASES : config.set === 'holdout' ? ROUTE_HOLDOUT : ROUTE_HOLDOUT2
   const routes: RouteEvalResult[] = routeCases.map((item) => ({ ...item, rounds: [] }))
   const guards: GuardEvalResult[] = config.guard
     ? GUARD_CASES.map((item) => ({ ...item, rounds: [] }))
@@ -63,11 +66,13 @@ function prepareJobs() {
   return { routes, guards, jobs }
 }
 
-describeLive(`T15 路由真实评测 ${config.tag}`, () => {
+describeLive(`${series} 路由真实评测 ${config.tag}`, () => {
   it(`串行完成 ${config.set} 路由预测${config.guard ? '和护栏评估' : ''}`, async () => {
     const { routes, guards, jobs } = prepareJobs()
     expect(jobs).toHaveLength(config.guard ? 68 : 60)
-    const costSamples = await readHistoricalCosts()
+    const costSamples = await readHistoricalCosts(
+      config.set === 'holdout2' ? ['T11', 'T13', 'T15'] : ['T11', 'T13'],
+    )
     await mkdir(reportDir, { recursive: true })
     const llm = getLlm()
     if (llm.mode !== 'live') throw new Error('eval:route 需要 LLM_MODE=live，未发起评测')
@@ -149,6 +154,8 @@ describeLive(`T15 路由真实评测 ${config.tag}`, () => {
       writeFile(path.join(reportDir, 'raw.json'), rawJson, 'utf8'),
       writeFile(path.join(reportDir, 'report.md'), report, 'utf8'),
     ])
-    console.log(`已完成 ${assessmentCalls} 次评估，报告写入 collab/reports/eval/T15/${config.tag}/`)
+    console.log(
+      `已完成 ${assessmentCalls} 次评估，报告写入 collab/reports/eval/${series}/${config.tag}/`,
+    )
   })
 })

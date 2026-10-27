@@ -31,7 +31,7 @@ export interface RouteEvaluationArtifact {
   llmCalls: number
   startedAt: string
   completedAt: string
-  evalSet?: 'dev' | 'holdout'
+  evalSet?: 'dev' | 'holdout' | 'holdout2'
   evalTag?: string
   routes: RouteEvalResult[]
   guards: GuardEvalResult[]
@@ -114,7 +114,7 @@ export function buildRouteReport(raw: RouteEvaluationArtifact): string {
   const predictedLevels = raw.routes.flatMap((item) => item.rounds.map((round) => round.level))
   const costs = costModel(levelStats, predictedLevels)
   const lines = [
-    `# ${raw.evalTag ? `T15 ${raw.evalTag}` : 'T14'} 路由评测报告`,
+    `# ${raw.evalSet === 'holdout2' ? 'T16' : raw.evalTag ? 'T15' : 'T14'}${raw.evalTag ? ` ${raw.evalTag}` : ''} 路由评测报告`,
     '',
     `- 评测方式：直接调用 assessTask；intensity 固定为 ${raw.intensity}；30 条路由各 2 轮、${raw.guards.length} 条护栏各 1 轮，全部串行。`,
     `- assessTask 调用：${raw.assessmentCalls} 次；底层 generateJson 调用：${raw.llmCalls} 次（含服务内重试，确定性规则不调用 LLM）。`,

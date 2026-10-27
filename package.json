@@ -16,6 +16,7 @@
     "smoke:live": "vitest run --config vitest.live.config.mts",
     "eval:route": "vitest run --config vitest.live.config.mts src/server/live/route-eval.live.ts",
     "eval:cost": "vitest run --config vitest.live.config.mts src/server/live/cost-sample.live.ts",
+    "eval:t16": "vitest run --config vitest.live.config.mts src/server/live/t16-reports.live.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run typecheck && npm run test && npm run format:check"
