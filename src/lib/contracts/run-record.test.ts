@@ -18,6 +18,30 @@ describe('runRecordSchema', () => {
     expect(runRecordSchema.safeParse(validRecord).success).toBe(true)
   })
 
+  it('兼容事件中缺少 upgraded 的旧运行记录', () => {
+    const record = runRecordSchema.parse({
+      ...validRecord,
+      events: [
+        {
+          seq: 0,
+          t: 0,
+          type: 'assess.completed',
+          assessment: {
+            dims: { subtasks: 0, tools: 0, parallel: 0, rigor: 0, length: 0 },
+            rationale: '旧记录',
+            source: 'llm',
+          },
+          decision: { rawScore: 0, adjustment: 0, score: 0, level: 0, downgraded: false },
+        },
+      ],
+    })
+    const event = record.events[0]
+    expect(event?.type).toBe('assess.completed')
+    if (event?.type === 'assess.completed') {
+      expect(event.decision.upgraded ?? false).toBe(false)
+    }
+  })
+
   it.each([
     { ...validRecord, status: 'other' },
     { ...validRecord, extra: true },

@@ -119,6 +119,30 @@ describe('runEventSchema', () => {
     )
   })
 
+  it('assess.completed 兼容缺失 upgraded 的旧事件并接受新字段', () => {
+    const legacy = runEventSchema.parse({
+      ...envelope,
+      type: 'assess.completed',
+      assessment,
+      decision,
+    })
+    expect(legacy.type).toBe('assess.completed')
+    if (legacy.type === 'assess.completed') {
+      expect(legacy.decision.upgraded ?? false).toBe(false)
+    }
+
+    const current = runEventSchema.parse({
+      ...envelope,
+      type: 'assess.completed',
+      assessment,
+      decision: { ...decision, upgraded: true },
+    })
+    expect(current.type).toBe('assess.completed')
+    if (current.type === 'assess.completed') {
+      expect(current.decision.upgraded).toBe(true)
+    }
+  })
+
   it('RunEventBody 分配式去掉 seq 和 t', () => {
     expectTypeOf<Extract<RunEventBody, { type: 'node.started' }>>().toEqualTypeOf<{
       type: 'node.started'

@@ -35,6 +35,7 @@ describe('decideLevel', () => {
       score,
       level: expected,
       downgraded: false,
+      upgraded: false,
     })
   })
 
@@ -80,6 +81,34 @@ describe('decideLevel', () => {
   it('tools≥1 且 hasTools 时 L1 不降级', () => {
     const result = decideLevel({ ...zeroDims, subtasks: 1, tools: 1 }, 0.5, true)
     expect(result).toMatchObject({ level: 1, score: 2, downgraded: false })
+  })
+
+  it.each([
+    { intensity: 0.25, score: 0 },
+    { intensity: 0.5, score: 1 },
+  ])('tools=1、总分 $score 且有工具能力时升级为 L1', ({ intensity, score }) => {
+    const result = decideLevel({ ...zeroDims, tools: 1 }, intensity, true)
+    expect(result).toMatchObject({ level: 1, score, downgraded: false, upgraded: true })
+  })
+
+  it.each([
+    { intensity: 0.25, score: 0 },
+    { intensity: 0.5, score: 1 },
+  ])('tools=1、总分 $score 但没有工具能力时保持 L0', ({ intensity, score }) => {
+    const result = decideLevel({ ...zeroDims, tools: 1 }, intensity, false)
+    expect(result).toMatchObject({ level: 0, score, downgraded: false, upgraded: false })
+  })
+
+  it('tools=0 时不升级', () => {
+    const result = decideLevel({ ...zeroDims, subtasks: 1 }, 0.5, true)
+    expect(result).toMatchObject({ level: 0, downgraded: false, upgraded: false })
+  })
+
+  it('upgraded 和 downgraded 不会同时为 true', () => {
+    const downgraded = decideLevel({ ...zeroDims, subtasks: 1, tools: 1 }, 0.5, false)
+    const upgraded = decideLevel({ ...zeroDims, tools: 1 }, 0.5, true)
+    expect(downgraded).toMatchObject({ downgraded: true, upgraded: false })
+    expect(upgraded).toMatchObject({ downgraded: false, upgraded: true })
   })
 })
 

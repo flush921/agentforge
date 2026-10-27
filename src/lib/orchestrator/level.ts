@@ -100,7 +100,12 @@ export function decideLevel(
     level = 0
   }
 
-  return { rawScore, adjustment, score, level, downgraded }
+  const upgraded = level === 0 && dims.tools >= 1 && hasTools
+  if (upgraded) {
+    level = 1
+  }
+
+  return { rawScore, adjustment, score, level, downgraded, upgraded }
 }
 
 export function buildStaticPlan(level: 0 | 1, tools: ToolName[]): Plan {

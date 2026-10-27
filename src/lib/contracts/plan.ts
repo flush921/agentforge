@@ -35,6 +35,7 @@ export const levelDecisionSchema = z.strictObject({
   score: z.number().int().min(0).max(10),
   level: levelSchema,
   downgraded: z.boolean(),
+  upgraded: z.boolean().optional(),
 })
 
 export const planNodeSchema = z

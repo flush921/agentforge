@@ -132,4 +132,11 @@ describe('plan schemas', () => {
       }).success,
     ).toBe(true)
   })
+
+  it('upgraded 为可选布尔字段，旧数据缺失时按 false 读取', () => {
+    const legacy = levelDecisionSchema.parse(validDecision)
+    expect(legacy.upgraded ?? false).toBe(false)
+    expect(levelDecisionSchema.parse({ ...validDecision, upgraded: true }).upgraded).toBe(true)
+    expect(levelDecisionSchema.safeParse({ ...validDecision, upgraded: 'yes' }).success).toBe(false)
+  })
 })

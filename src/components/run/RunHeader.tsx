@@ -129,6 +129,11 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
             <span className="text-ink-muted">
               得分 {decision.rawScore} {decision.adjustment >= 0 ? '+' : ''}
               {decision.adjustment} = {decision.score}
+              {decision.upgraded === true
+                ? ' · 需要工具，按 L1 执行'
+                : decision.downgraded
+                  ? ' · 无需工具，按 L0 执行'
+                  : null}
             </span>
           ) : null}
         </div>
