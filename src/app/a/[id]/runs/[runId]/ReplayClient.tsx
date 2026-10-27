@@ -33,8 +33,8 @@ function ReplayPlayer({ record, assistant }: { record: RunRecord; assistant?: As
     replay.state.output ?? (outputNode?.status === 'running' ? outputNode.text : undefined)
 
   return (
-    <div className="min-h-screen bg-background text-text-primary">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+    <div className="min-h-screen text-text-primary">
+      <header className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] bg-background/60 px-4 py-3 backdrop-blur-xl">
         <Link
           href={`/a/${encodeURIComponent(record.assistantId)}`}
           className="flex items-center gap-1.5 rounded-lg text-xs text-text-secondary hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
@@ -53,7 +53,7 @@ function ReplayPlayer({ record, assistant }: { record: RunRecord; assistant?: As
         <main className="mx-auto max-w-[1800px] space-y-3 p-3 sm:p-4">
           <ReplayControls replay={replay} view={view} onViewChange={setView} />
           <div className="grid gap-4 xl:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)]">
-            <section className="min-w-0 rounded-2xl border border-border bg-panel p-4">
+            <section className="glass-panel min-w-0 rounded-3xl p-4">
               <h2 className="text-[11px] font-medium text-ink-muted">任务</h2>
               <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-text-secondary">
                 {record.task}

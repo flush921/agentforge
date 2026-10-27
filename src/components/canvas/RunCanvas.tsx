@@ -204,7 +204,20 @@ function CanvasFlow({
         if (event !== null) setCameraMode('manual')
       }}
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--grid-dot)" />
+      <Background
+        id="canvas-dots"
+        variant={BackgroundVariant.Dots}
+        gap={22}
+        size={1.2}
+        color="var(--grid-dot)"
+      />
+      <Background
+        id="canvas-grid"
+        variant={BackgroundVariant.Lines}
+        gap={176}
+        lineWidth={0.6}
+        color="color-mix(in oklab, var(--brand) 9%, transparent)"
+      />
       <Controls
         showInteractive={false}
         showFitView={false}
@@ -251,7 +264,7 @@ export function RunCanvas({
       <div
         role="region"
         aria-label="编排画布"
-        className="h-full min-h-[360px] w-full overflow-hidden rounded-2xl border border-border bg-background"
+        className="canvas-stage h-full min-h-[360px] w-full overflow-hidden rounded-2xl border border-white/[0.06]"
       >
         <ReactFlowProvider>
           <CanvasFlow

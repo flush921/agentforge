@@ -37,8 +37,9 @@ function AgentNodeView({ data }: NodeProps<AgentFlowNode>) {
         onClick={() => onOpen(nodeState.node.id)}
         data-status={nodeState.status}
         style={accentStyle(info.family)}
-        className="canvas-agent-card nodrag nopan relative flex h-24 w-[216px] flex-col rounded-[14px] border border-border bg-panel px-3 py-2 text-left shadow-lg shadow-black/15 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+        className="canvas-agent-card nodrag nopan relative flex h-24 w-[216px] flex-col overflow-hidden rounded-[14px] border border-border px-3 py-2 text-left shadow-lg shadow-black/30 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand"
       >
+        <span aria-hidden className="canvas-card-accent absolute inset-x-0 top-0 h-[2px]" />
         <span className="flex min-w-0 items-start gap-2.5">
           <span className="canvas-avatar-ring relative mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full">
             <span

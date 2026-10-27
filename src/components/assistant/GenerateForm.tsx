@@ -40,11 +40,16 @@ export function GenerateForm({
           event.preventDefault()
           submit()
         }}
-        className="rounded-2xl border border-border bg-panel p-4 shadow-xl shadow-black/10 sm:p-5"
+        className="spotlight glass-panel rounded-3xl p-4 sm:p-6"
       >
-        <label htmlFor="assistant-prompt" className="text-sm font-medium text-text-primary">
-          描述你想要的 Agent
-        </label>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="assistant-prompt" className="text-sm font-medium text-text-primary">
+            描述你想要的 Agent
+          </label>
+          <span className="font-mono text-[10px] tracking-wider text-ink-muted">
+            STEP 01 · GENERATE
+          </span>
+        </div>
         <Textarea
           ref={textareaRef}
           id="assistant-prompt"
@@ -65,7 +70,7 @@ export function GenerateForm({
           rows={3}
           disabled={generating}
           aria-describedby="assistant-prompt-count"
-          className="mt-2.5 max-h-64 min-h-24 resize-y bg-background/60 text-[15px] leading-6"
+          className="mt-3 max-h-64 min-h-24 resize-y border-white/10 bg-background/70 text-[15px] leading-6 transition-shadow focus-visible:shadow-[0_0_0_1px_var(--brand),0_0_24px_-6px_var(--brand)]"
         />
         <div id="assistant-prompt-count" className="mt-1.5 text-right text-[11px] text-ink-muted">
           {prompt.length}/300
@@ -80,7 +85,7 @@ export function GenerateForm({
                 onPromptChange(example)
                 textareaRef.current?.focus()
               }}
-              className="rounded-full border border-border bg-background/45 px-2.5 py-1.5 text-left text-[11px] text-text-secondary transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+              className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-left text-[11px] text-text-secondary transition-colors hover:border-brand/40 hover:bg-brand/[0.06] hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
             >
               {example}
             </button>
@@ -95,7 +100,7 @@ export function GenerateForm({
             type="submit"
             size="lg"
             disabled={empty || generating}
-            className="h-10 min-w-32 px-4"
+            className="glow-button h-10 min-w-36 rounded-xl px-5"
           >
             {generating ? (
               <Loader2 className="animate-spin" aria-hidden />

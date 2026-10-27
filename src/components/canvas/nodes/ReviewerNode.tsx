@@ -32,8 +32,9 @@ function ReviewerNodeView({ data }: NodeProps<ReviewerFlowNode>) {
         onClick={() => onOpen(nodeState.node.id)}
         data-status={nodeState.status}
         style={accentStyle('review')}
-        className="canvas-agent-card nodrag nopan relative flex h-20 w-[184px] flex-col rounded-[14px] border border-border bg-panel px-3 py-2 text-left shadow-lg shadow-black/15 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+        className="canvas-agent-card nodrag nopan relative flex h-20 w-[184px] flex-col overflow-hidden rounded-[14px] border border-border px-3 py-2 text-left shadow-lg shadow-black/30 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand"
       >
+        <span aria-hidden className="canvas-card-accent absolute inset-x-0 top-0 h-[2px]" />
         <span className="flex min-w-0 items-center gap-2.5">
           <span className="flex size-10 shrink-0 rotate-45 items-center justify-center border-2 border-role-review bg-background/60">
             <ShieldCheck className="size-4 -rotate-45 text-role-review" aria-hidden />

@@ -47,7 +47,7 @@ export function AssistantPreview({
       aria-label="Agent 预览"
       aria-busy={saving}
       data-testid="assistant-preview"
-      className="rounded-2xl border border-brand/25 bg-panel p-4 shadow-xl shadow-black/15 sm:p-6"
+      className="spotlight glass-panel rounded-3xl !border-brand/30 p-4 sm:p-6"
     >
       <header className="flex items-center gap-3.5">
         <span
@@ -184,7 +184,7 @@ export function AssistantPreview({
           <RotateCcw aria-hidden />
           重新生成
         </Button>
-        <Button type="button" disabled={saving} onClick={onSave}>
+        <Button type="button" disabled={saving} onClick={onSave} className="glow-button">
           {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
           {saving ? '正在保存…' : '保存并开始使用'}
         </Button>

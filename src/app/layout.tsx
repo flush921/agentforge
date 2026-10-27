@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { AccessGate } from '@/components/site/AccessGate'
+import { SiteBackdrop } from '@/components/visual/SiteBackdrop'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="zh-CN" className="dark h-full antialiased">
       <body className="min-h-full">
+        <SiteBackdrop />
         {children}
         <AccessGate />
       </body>

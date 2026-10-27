@@ -51,6 +51,7 @@ function FlowEdgeView({
           strokeWidth: active ? 2 : 1.5,
           strokeOpacity: active ? 1 : done ? 0.45 : 1,
           strokeDasharray: kind === 'flow' ? undefined : '6 4',
+          filter: active ? 'drop-shadow(0 0 3px var(--brand))' : undefined,
         }}
       />
       {active && !reducedMotion ? (

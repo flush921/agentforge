@@ -40,7 +40,7 @@ export function TaskComposer({
         event.preventDefault()
         send()
       }}
-      className="shrink-0 border-t border-border bg-panel p-3"
+      className="shrink-0 border-t border-white/[0.06] bg-background/40 p-3"
     >
       <label htmlFor="workspace-task" className="sr-only">
         输入要交给 Agent 的任务
@@ -64,7 +64,7 @@ export function TaskComposer({
         disabled={running}
         placeholder="输入一个任务，看看它会如何编排…"
         aria-describedby="workspace-task-count"
-        className="max-h-40 min-h-20 resize-y bg-background/60 text-sm leading-6"
+        className="max-h-40 min-h-20 resize-y border-white/10 bg-background/70 text-sm leading-6 transition-shadow focus-visible:shadow-[0_0_0_1px_var(--brand),0_0_24px_-6px_var(--brand)]"
       />
       <div id="workspace-task-count" className="mt-1 text-right text-[10px] text-ink-muted">
         {task.length}/4000
@@ -95,7 +95,7 @@ export function TaskComposer({
             停止
           </Button>
         ) : (
-          <Button type="submit" size="sm" disabled={empty}>
+          <Button type="submit" size="sm" disabled={empty} className="glow-button px-3.5">
             <SendHorizontal aria-hidden />
             发送
           </Button>

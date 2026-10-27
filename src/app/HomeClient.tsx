@@ -147,7 +147,8 @@ export function HomeClient() {
 
       <div aria-live="polite">
         {generating ? (
-          <section className="mt-5 rounded-2xl border border-border bg-panel p-5">
+          <section className="glass-panel relative mt-5 overflow-hidden rounded-3xl p-5">
+            <div aria-hidden className="hud-grid-line scan-sweep absolute inset-x-0 top-0 h-px" />
             <div aria-hidden className="space-y-3">
               <Skeleton className="h-4 w-1/3" />
               <Skeleton className="h-4 w-2/3" />
@@ -170,9 +171,12 @@ export function HomeClient() {
         </div>
       ) : null}
 
-      <section id="library" aria-busy={loading} className="mt-10 scroll-mt-24">
+      <section id="library" aria-busy={loading} className="mt-14 scroll-mt-24">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">{'我的 Agent'}</h2>
+          <h2 className="flex items-center gap-3 text-lg font-semibold text-text-primary">
+            <span className="font-mono text-[11px] font-normal tracking-wider text-brand">02</span>
+            {'我的 Agent'}
+          </h2>
           {!loading && storageError === null && assistants.length === 0 ? (
             <p className="text-xs text-text-secondary">{'还没有 Agent，先在上面生成一个吧'}</p>
           ) : null}
@@ -216,7 +220,10 @@ export function HomeClient() {
         ) : null}
 
         <div className="mt-6 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-medium text-text-primary">{'示例 Agent'}</h2>
+          <h2 className="flex items-center gap-3 text-base font-medium text-text-primary">
+            <span className="font-mono text-[11px] font-normal tracking-wider text-brand">03</span>
+            {'示例 Agent'}
+          </h2>
           <span className="text-[11px] text-ink-muted">同一引擎，不同能力组合</span>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -108,8 +108,8 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
   }, [])
 
   return (
-    <div className="flex h-dvh min-h-[640px] flex-col overflow-hidden bg-background text-text-primary">
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-3 sm:px-4">
+    <div className="flex h-dvh min-h-[640px] flex-col overflow-hidden text-text-primary">
+      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-background/60 px-3 backdrop-blur-xl sm:px-4">
         <Link
           href="/"
           aria-label="返回首页"
@@ -121,7 +121,10 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
         <span
           aria-hidden
           className="flex size-9 shrink-0 items-center justify-center rounded-full text-xl"
-          style={{ backgroundColor: assistant.color }}
+          style={{
+            backgroundColor: assistant.color,
+            boxShadow: `0 0 20px -4px ${assistant.color}`,
+          }}
         >
           {assistant.avatar}
         </span>
@@ -157,7 +160,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
           id="workspace-conversation"
           aria-label="任务对话"
           className={cn(
-            'min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-border bg-panel/25 lg:flex lg:rounded-2xl lg:border',
+            'min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-panel/40 lg:glass-panel lg:flex lg:rounded-3xl',
             mobileTab === 'conversation' ? 'flex' : 'hidden',
           )}
         >
@@ -192,7 +195,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
           id="workspace-canvas"
           aria-label="编排工作区"
           className={cn(
-            'min-h-0 min-w-0 flex-1 flex-col border-border bg-panel/20 p-3 lg:flex lg:rounded-2xl lg:border',
+            'min-h-0 min-w-0 flex-1 flex-col p-3 lg:flex lg:p-0',
             mobileTab === 'canvas' ? 'flex' : 'hidden lg:flex',
           )}
         >

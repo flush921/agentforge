@@ -47,7 +47,7 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
   return (
     <section
       aria-label="运行概览"
-      className="rounded-2xl border border-border bg-panel/85 px-3 py-3 sm:px-4"
+      className="glass-panel relative overflow-hidden rounded-2xl px-3 py-3 sm:px-4"
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <span
@@ -106,10 +106,10 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
                   aria-valuemin={0}
                   aria-valuemax={budget.limit}
                   aria-valuenow={Math.min(budget.used, budget.limit)}
-                  className="h-1.5 overflow-hidden rounded-full bg-background"
+                  className="h-1.5 overflow-hidden rounded-full bg-background/80"
                 >
                   <div
-                    className="h-full rounded-full bg-brand transition-[width]"
+                    className="h-full rounded-full bg-gradient-to-r from-brand/70 to-brand shadow-[0_0_10px_var(--brand)] transition-[width]"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>

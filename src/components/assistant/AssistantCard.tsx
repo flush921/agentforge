@@ -43,13 +43,16 @@ export function AssistantCard({
       <Link
         href={`/a/${encodeURIComponent(assistant.id)}`}
         aria-label={`打开 Agent ${assistant.name}`}
-        className="block h-full min-h-44 rounded-xl border border-border bg-panel p-4 transition-colors hover:border-brand/45 hover:bg-secondary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="spotlight glass-panel group block h-full min-h-44 rounded-2xl p-4 transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none motion-reduce:hover:translate-y-0"
       >
         <div className={cn('flex items-center gap-3', preset ? 'pr-12' : 'pr-7')}>
           <span
             aria-hidden
-            className="flex size-11 shrink-0 items-center justify-center rounded-full text-2xl"
-            style={{ backgroundColor: assistant.color }}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-2xl transition-shadow duration-300"
+            style={{
+              backgroundColor: assistant.color,
+              boxShadow: `0 0 22px -6px ${assistant.color}`,
+            }}
           >
             {assistant.avatar}
           </span>
@@ -65,7 +68,7 @@ export function AssistantCard({
           {assistant.directions.slice(0, 3).map((direction) => (
             <span
               key={direction}
-              className="rounded border border-border/70 bg-background/35 px-1.5 py-0.5 text-[10px] text-text-secondary"
+              className="rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 text-[10px] text-text-secondary"
             >
               {DIRECTION_LABELS[direction]}
             </span>

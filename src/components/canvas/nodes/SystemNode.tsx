@@ -57,8 +57,9 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
       transition={{ duration: reducedMotion ? 0 : 0.32 }}
       data-status={graphNode.status}
       className={cn(
-        'canvas-system-node flex h-12 w-36 items-center gap-2.5 rounded-full border border-border bg-panel/95 px-3 shadow-lg shadow-black/15',
-        graphNode.status === 'running' && 'border-brand/70',
+        'canvas-system-node flex h-12 w-36 items-center gap-2.5 rounded-full border border-brand/20 bg-panel/90 px-3 shadow-lg shadow-black/30 backdrop-blur',
+        graphNode.status === 'running' && 'border-brand/70 shadow-[0_0_24px_-6px_var(--brand)]',
+        graphNode.status === 'completed' && 'border-brand/35',
         graphNode.status === 'failed' && 'border-danger/70',
       )}
     >

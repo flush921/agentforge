@@ -12,21 +12,28 @@ import type { RunPhase } from '@/stores/run-store'
 
 function EmptyCanvas() {
   return (
-    <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-panel/30 p-8 text-center">
-      <div className="flex items-center gap-3" aria-hidden>
-        <span className="flex size-12 items-center justify-center rounded-xl border border-dashed border-brand/35 text-brand">
-          <Bot className="size-5" />
+    <div className="canvas-stage relative flex h-full min-h-[360px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/[0.06] p-8 text-center">
+      <div aria-hidden className="relative flex size-56 items-center justify-center">
+        <span className="radar-ring absolute inset-0 rounded-full border border-brand/15" />
+        <span className="radar-ring absolute inset-7 rounded-full border border-brand/20 [animation-delay:-1s]" />
+        <span className="radar-ring absolute inset-14 rounded-full border border-brand/25 [animation-delay:-2s]" />
+        <span className="radar-sweep absolute inset-0 rounded-full" />
+        <span className="orbit absolute inset-0">
+          <span className="absolute left-1/2 top-0 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-role-gather/60 bg-panel text-role-gather shadow-[0_0_18px_-4px_var(--role-gather)]">
+            <Bot className="size-4" />
+          </span>
+          <span className="absolute bottom-[12%] left-[6%] flex size-9 items-center justify-center rounded-full border border-role-reason/60 bg-panel text-role-reason shadow-[0_0_18px_-4px_var(--role-reason)]">
+            <Bot className="size-4" />
+          </span>
+          <span className="absolute bottom-[12%] right-[6%] flex size-9 items-center justify-center rounded-full border border-role-produce/60 bg-panel text-role-produce shadow-[0_0_18px_-4px_var(--role-produce)]">
+            <Bot className="size-4" />
+          </span>
         </span>
-        <span className="h-px w-10 bg-border" />
-        <span className="flex size-12 items-center justify-center rounded-xl border border-dashed border-border text-text-secondary">
-          <Workflow className="size-5" />
-        </span>
-        <span className="h-px w-10 bg-border" />
-        <span className="flex size-12 items-center justify-center rounded-xl border border-dashed border-border text-text-secondary">
-          <Bot className="size-5" />
+        <span className="relative flex size-14 items-center justify-center rounded-2xl border border-brand/50 bg-brand/10 text-brand shadow-[0_0_32px_-6px_var(--brand)]">
+          <Workflow className="size-6" />
         </span>
       </div>
-      <p className="mt-6 max-w-sm text-sm leading-6 text-text-secondary">
+      <p className="mt-8 max-w-sm text-sm leading-6 text-text-secondary">
         {'发送任务后，这里会实时画出子 Agent 编排'}
       </p>
       <p className="mt-2 text-xs text-ink-muted">
