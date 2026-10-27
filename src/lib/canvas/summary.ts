@@ -26,10 +26,18 @@ function truncateStart(text: string): string {
   return `…${text.slice(-MAX_SUMMARY_LENGTH)}`
 }
 
+/**
+ * 去掉行内的 Markdown 强调标记（`**`、`__`、`~~`、反引号）。
+ * 摘要只显示一行纯文本，流式中途常出现未闭合的 `**`，直接删掉比配对解析更稳。
+ */
+function stripInlineMarks(line: string): string {
+  return line.replace(/\*\*|__|~~|`/g, '')
+}
+
 function lastContentLine(text: string): string {
   const lines = text.split('\n')
   for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = (lines[i] ?? '').replace(/^(?:[#>*|\s-]|\d+\.)+/, '').trim()
+    const line = stripInlineMarks((lines[i] ?? '').replace(/^(?:[#>*|\s-]|\d+\.)+/, '')).trim()
     if (line) {
       return line
     }
@@ -80,7 +88,9 @@ export function agentSummary(ns: NodeState): AgentSummary {
   }
 
   if (ns.status === 'completed') {
-    const line = ns.output ? stripLinePrefix(firstNonEmptyLine(ns.output)) : ''
+    const line = ns.output
+      ? stripInlineMarks(stripLinePrefix(firstNonEmptyLine(ns.output))).trim()
+      : ''
     return { text: truncateEnd(line), tone: 'normal', streaming: false }
   }
 

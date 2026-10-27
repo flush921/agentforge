@@ -60,6 +60,21 @@ describe('agentSummary', () => {
     expect(agentSummary(nodeState({ status: 'running', text })).text).toBe(expected)
   })
 
+  it.each([
+    ['结论：**19.77%', '结论：19.77%'],
+    ['使用 `calculator` 计算', '使用 calculator 计算'],
+    ['__强调__与~~删除~~', '强调与删除'],
+  ])('running 清理行内强调标记（含流式未闭合）：%s', (text, expected) => {
+    expect(agentSummary(nodeState({ status: 'running', text })).text).toBe(expected)
+  })
+
+  it('completed 清理首尾成对的粗体（线上曾显示为「…19.77%**」）', () => {
+    const summary = agentSummary(
+      nodeState({ status: 'completed', output: '**环比增长率 ≈ 19.77%**\n\n计算过程…' }),
+    )
+    expect(summary.text).toBe('环比增长率 ≈ 19.77%')
+  })
+
   it('running 只有 reasoning：「思考中…」', () => {
     const summary = agentSummary(nodeState({ status: 'running', reasoning: '先想想' }))
     expect(summary).toEqual({ text: '思考中…', tone: 'normal', streaming: false })
