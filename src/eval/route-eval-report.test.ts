@@ -131,4 +131,18 @@ describe('buildRouteReport', () => {
     expect(report).toContain('| 一律 L4 | 80 | 800 |')
     expect(report).toContain('| 一律 L0 | 20 | 200 |')
   })
+
+  it('按实际成本来源生成 T16 标题与说明', () => {
+    const report = buildRouteReport({
+      ...artifact(
+        [],
+        [],
+        [{ source: 'T15', id: 'cost-1', level: 1, totalTokens: 100, durationMs: 100 }],
+      ),
+      evalSet: 'holdout2',
+      evalTag: 'holdout2-final',
+    })
+    expect(report).toContain('# T16 holdout2-final 路由评测报告')
+    expect(report).toContain('成本只读取 T15 已有 completed 运行，共 1 条')
+  })
 })

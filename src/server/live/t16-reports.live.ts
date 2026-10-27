@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, it } from 'vitest'
 import { readHistoricalCosts } from '@/eval/historical-cost-io'
-import type { RouteEvaluationArtifact } from '@/eval/route-eval-report'
+import { buildRouteReport, type RouteEvaluationArtifact } from '@/eval/route-eval-report'
 import { buildT16Final } from '@/eval/t16-final'
 import { buildOfflineRecompute } from '@/eval/t16-offline'
 
@@ -58,8 +58,15 @@ describe('T16 离线报告', () => {
     ])
     const samples = await readHistoricalCosts(['T11', 'T13', 'T15'])
     const report = buildT16Final({ final, t14Dev, holdoutV12, holdoutV13, samples })
+    const routeReport = buildRouteReport(final)
     assertSafeText(report)
-    await writeFile(path.join(outputDir, 'final.md'), report, 'utf8')
-    console.log('已离线生成 collab/reports/eval/T16/final.md，未调用模型')
+    assertSafeText(routeReport)
+    await Promise.all([
+      writeFile(path.join(outputDir, 'final.md'), report, 'utf8'),
+      writeFile(path.join(outputDir, 'holdout2-final/report.md'), routeReport, 'utf8'),
+    ])
+    console.log(
+      '已离线生成 collab/reports/eval/T16/final.md 和 holdout2-final/report.md，未调用模型',
+    )
   })
 })

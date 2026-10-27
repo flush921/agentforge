@@ -203,7 +203,7 @@ export function buildRouteReport(raw: RouteEvaluationArtifact): string {
     '',
     '## 6. 级别成本统计与策略对比',
     '',
-    `成本只读取 T11 和 T13 已有 completed 运行，共 ${raw.costSamples.length} 条；没有为本评测另外执行编排。totalTokens = inputTokens + outputTokens。T11 取最终 plan.completed 的 plan.level，T13 适配顶层 level。`,
+    `成本只读取 ${[...new Set(raw.costSamples.map((sample) => sample.source))].join('、') || '指定历史数据'} 已有 completed 运行，共 ${raw.costSamples.length} 条；没有为本评测另外执行编排。totalTokens = inputTokens + outputTokens。T11 取最终 plan.completed 的 plan.level，T13 适配顶层 level。`,
     '',
     '| level | n | 平均 total tokens | 平均耗时（ms） |',
     '| :-- | --: | --: | --: |',
