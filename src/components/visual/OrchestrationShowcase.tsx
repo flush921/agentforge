@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   SHOWCASE_LEVELS,
@@ -38,6 +38,7 @@ function NodeShape({ node }: { node: ShowcaseNode }) {
           width={(R + 6) * 2}
           height={26}
           rx={13}
+          className="showcase-pill"
           fill="var(--panel)"
           stroke={color}
           strokeOpacity={0.55}
@@ -79,8 +80,21 @@ function NodeShape({ node }: { node: ShowcaseNode }) {
   )
 }
 
+/** 服务端快照为 false、客户端快照为 true：hydration 之后自动切换，不需要在 effect 里 setState。 */
+function subscribeNever() {
+  return () => {}
+}
+
 export function OrchestrationShowcase() {
-  const reducedMotion = useReducedMotion()
+  // 服务端不知道用户是否开了「减少动效」，首次客户端渲染必须与服务端一致，
+  // 否则会出现 hydration 不匹配；挂载之后再按真实偏好切换。
+  const systemReduced = useReducedMotion()
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  )
+  const reducedMotion = mounted && Boolean(systemReduced)
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const current = SHOWCASE_LEVELS[index]!

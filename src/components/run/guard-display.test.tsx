@@ -74,7 +74,7 @@ describe('guard 展示', () => {
     expect(html).toContain('我们在这里')
     expect(html).not.toContain('L0')
     expect(html).not.toContain('子 Agent')
-    expect(html).not.toContain('TOKEN 预算')
+    expect(html).not.toContain('Token 预算')
     expect(html).not.toContain('得分')
     expect(html).not.toContain('运行警告')
     expect(state.warnings).toEqual(['已按安全护栏拒绝执行'])
@@ -87,7 +87,7 @@ describe('guard 展示', () => {
     expect(html).toContain('运行警告')
     expect(html).not.toContain('L0')
     expect(html).not.toContain('子 Agent')
-    expect(html).not.toContain('TOKEN 预算')
+    expect(html).not.toContain('Token 预算')
     expect(html).not.toContain('得分')
   })
 

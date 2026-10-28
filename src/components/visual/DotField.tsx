@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { BASE_LAYER_CLASS, CURSOR_LAYER_CLASS, fitLayers, getLayer } from './canvas-layers'
 
 /**
- * 全屏点阵背景：鼠标附近的点会变亮、放大并被轻轻推开；点击处扩散一圈涟漪。
- * `ambient` 打开时还有一道缓慢流动的光带（首页使用；工作台关闭以节省性能）。
- * 只在有动画需要时运行 rAF；标签页隐藏或系统要求减少动效时停止。
+ * 极光点阵：鼠标附近的点会变亮、放大并被轻轻推开；点击处扩散一圈涟漪。
+ * `ambient` 打开时还有一道缓慢流动的光带（首页使用）。
+ * 被光标点亮的点画在光标层，移到面板上也能看到；只在有动画需要时运行 rAF。
  */
 
 const GAP = 26
@@ -24,13 +25,15 @@ interface Ripple {
 }
 
 export function DotField({ ambient = false }: { ambient?: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const baseRef = useRef<HTMLCanvasElement>(null)
+  const cursorRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
-    if (!canvas || !context) return
-    const ctx = context
+    const base = getLayer(baseRef.current)
+    const cursor = getLayer(cursorRef.current)
+    if (!base || !cursor) return
+    const ctx = base.ctx
+    const top = cursor.ctx
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     let width = 0
     let height = 0
@@ -41,16 +44,12 @@ export function DotField({ ambient = false }: { ambient?: boolean }) {
     const ripples: Ripple[] = []
 
     function resize() {
-      const ratio = Math.min(window.devicePixelRatio || 1, 2)
-      width = window.innerWidth
-      height = window.innerHeight
-      canvas!.width = Math.round(width * ratio)
-      canvas!.height = Math.round(height * ratio)
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+      ;({ width, height } = fitLayers([base!, cursor!]))
     }
 
     function draw(now: number) {
       ctx.clearRect(0, 0, width, height)
+      top.clearRect(0, 0, width, height)
       const reduced = motionQuery.matches
       // 光标位置做缓动，让高亮区域带一点拖尾。
       pointer.x += (pointer.tx - pointer.x) * 0.16
@@ -58,7 +57,7 @@ export function DotField({ ambient = false }: { ambient?: boolean }) {
       while (ripples.length > 0 && now - ripples[0]!.start > RIPPLE_MS) ripples.shift()
 
       const buckets: Path2D[] = Array.from({ length: ALPHA_STEPS }, () => new Path2D())
-      const glows: Array<{ x: number; y: number; r: number; t: number }> = []
+      const glows: Array<{ x: number; y: number; r: number; t: number; cursor: boolean }> = []
       const offsetX = (width % GAP) / 2
       const offsetY = (height % GAP) / 2
 
@@ -90,11 +89,11 @@ export function DotField({ ambient = false }: { ambient?: boolean }) {
           let shimmer = 0
           if (ambient && !reduced) {
             const wave = Math.sin(gx * 0.011 + gy * 0.007 - now * 0.00055)
-            shimmer = Math.max(0, wave) ** 6 * 0.55
+            shimmer = Math.max(0, wave) ** 6 * 0.33
           }
-          const level = Math.max(heat, shimmer * 0.6)
+          const level = Math.max(heat, shimmer)
           if (level > 0.18) {
-            glows.push({ x, y, r: 1 + level * 2.2, t: level })
+            glows.push({ x, y, r: 1 + level * 2.2, t: level, cursor: heat >= shimmer })
           } else {
             const bucket = Math.min(ALPHA_STEPS - 1, Math.floor((level / 0.18) * ALPHA_STEPS))
             buckets[bucket]!.rect(x - 0.8, y - 0.8, 1.6, 1.6)
@@ -111,10 +110,13 @@ export function DotField({ ambient = false }: { ambient?: boolean }) {
         ctx.fill(buckets[i]!)
       }
       for (const glow of glows) {
-        ctx.fillStyle = `rgba(${BRAND[0]},${BRAND[1]},${BRAND[2]},${Math.min(1, 0.35 + glow.t * 0.75)})`
-        ctx.beginPath()
-        ctx.arc(glow.x, glow.y, glow.r, 0, Math.PI * 2)
-        ctx.fill()
+        // 光标层的点略淡一些，叠在文字上也不影响阅读。
+        const layer = glow.cursor ? top : ctx
+        const alpha = Math.min(1, 0.35 + glow.t * 0.75) * (glow.cursor ? 0.8 : 1)
+        layer.fillStyle = `rgba(${BRAND[0]},${BRAND[1]},${BRAND[2]},${alpha})`
+        layer.beginPath()
+        layer.arc(glow.x, glow.y, glow.r, 0, Math.PI * 2)
+        layer.fill()
       }
 
       const settling =
@@ -183,10 +185,9 @@ export function DotField({ ambient = false }: { ambient?: boolean }) {
   }, [ambient])
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden
-      className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
-    />
+    <>
+      <canvas ref={baseRef} aria-hidden className={BASE_LAYER_CLASS} />
+      <canvas ref={cursorRef} aria-hidden className={CURSOR_LAYER_CLASS} />
+    </>
   )
 }

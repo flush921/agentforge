@@ -95,7 +95,7 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
             {budget !== undefined ? (
               <div className="min-w-[150px] flex-1 sm:max-w-[260px]">
                 <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-text-secondary">
-                  <span>TOKEN 预算</span>
+                  <span>Token 预算</span>
                   <span className="font-mono text-text-primary">
                     {formatTokens(budget.used)} / {formatTokens(budget.limit)}
                   </span>

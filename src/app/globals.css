@@ -111,6 +111,120 @@
   --sidebar-accent-foreground: var(--text-primary);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--brand);
+  --title-gradient: linear-gradient(
+    100deg,
+    #67e8f9 0%,
+    var(--brand) 35%,
+    #818cf8 75%,
+    #c084fc 100%
+  );
+  --glass-deco: linear-gradient(transparent, transparent);
+  --glass-fill: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--panel) 82%, transparent),
+    color-mix(in oklab, var(--panel) 62%, transparent)
+  );
+  --glass-edge: linear-gradient(
+    color-mix(in oklab, var(--text-primary) 9%, transparent),
+    color-mix(in oklab, var(--text-primary) 9%, transparent)
+  );
+}
+
+/* ---------- 风格二：指挥舱（HUD 终端）---------- */
+[data-theme='hud'] {
+  --background: #050806;
+  --foreground: #e6f4e1;
+  --panel: #0b110c;
+  --border: #1f2c21;
+  --text-primary: #e6f4e1;
+  --text-secondary: #93a891;
+  --ink-muted: #5c6e5b;
+  --brand: #c6ff3d;
+  --primary-foreground: #0d1400;
+  --sidebar-primary-foreground: #0d1400;
+  --secondary: #131c14;
+  --muted: #131c14;
+  --accent: #131c14;
+  --sidebar: #080d09;
+  --sidebar-accent: #131c14;
+  --edge: #2a3a2b;
+  --grid-dot: #1b281c;
+  --radius: 0.2rem;
+  --chart-4: #2dd4bf;
+  --title-gradient: linear-gradient(100deg, #efffb8 0%, var(--brand) 45%, #5eead4 100%);
+  --glass-fill: linear-gradient(180deg, rgb(11 17 12 / 0.9), rgb(8 13 9 / 0.78));
+  --glass-edge: linear-gradient(
+    color-mix(in oklab, var(--brand) 20%, transparent),
+    color-mix(in oklab, var(--brand) 20%, transparent)
+  );
+  --hud-tick: color-mix(in oklab, var(--brand) 85%, transparent);
+  --glass-deco:
+    linear-gradient(var(--hud-tick), var(--hud-tick)) left top / 14px 2px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) left top / 2px 14px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) right top / 14px 2px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) right top / 2px 14px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) left bottom / 14px 2px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) left bottom / 2px 14px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) right bottom / 14px 2px no-repeat,
+    linear-gradient(var(--hud-tick), var(--hud-tick)) right bottom / 2px 14px no-repeat;
+}
+
+/* ---------- 风格三：星云（深空粒子）---------- */
+[data-theme='nebula'] {
+  --background: #07051a;
+  --foreground: #f1edff;
+  --panel: #120d2b;
+  --border: #2a2350;
+  --text-primary: #f1edff;
+  --text-secondary: #aba3cf;
+  --ink-muted: #6c6594;
+  --brand: #b794ff;
+  --primary-foreground: #1a0b33;
+  --sidebar-primary-foreground: #1a0b33;
+  --secondary: #1c1640;
+  --muted: #1c1640;
+  --accent: #1c1640;
+  --sidebar: #0c0822;
+  --sidebar-accent: #1c1640;
+  --edge: #2f2858;
+  --grid-dot: #231c47;
+  --chart-4: #f472b6;
+  --radius: 0.85rem;
+  --title-gradient: linear-gradient(100deg, #ff5fb7 0%, #c06bff 38%, #8b7bff 62%, #38bdf8 100%);
+  --glass-fill: linear-gradient(160deg, rgb(28 20 64 / 0.78), rgb(14 10 36 / 0.62));
+  --glass-edge: linear-gradient(
+    140deg,
+    rgb(196 181 253 / 0.55),
+    rgb(183 148 255 / 0.06) 38%,
+    rgb(125 211 252 / 0.05) 62%,
+    rgb(244 114 182 / 0.45)
+  );
+}
+
+/* ---------- 风格四：星辰（星系变换首屏）---------- */
+[data-theme='stellar'] {
+  --background: #030509;
+  --foreground: #eef2fb;
+  --panel: #0b0f17;
+  --border: #1e2533;
+  --text-primary: #eef2fb;
+  --text-secondary: #9aa3b5;
+  --ink-muted: #5d6577;
+  --brand: #c9dcff;
+  --primary-foreground: #050810;
+  --sidebar-primary-foreground: #050810;
+  --secondary: #121825;
+  --muted: #121825;
+  --accent: #121825;
+  --sidebar: #070a10;
+  --sidebar-accent: #121825;
+  --edge: #273042;
+  --grid-dot: #161c28;
+  --chart-4: #ffc89a;
+  --radius: 0.75rem;
+  --title-gradient: linear-gradient(100deg, #ffffff 0%, #c9dcff 45%, #ffd2a6 100%);
+  --glass-fill: linear-gradient(180deg, rgb(12 16 25 / 0.74), rgb(6 9 15 / 0.62));
+  --glass-edge: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.04));
 }
 
 @layer base {
@@ -146,13 +260,37 @@
     );
 }
 
+/* 指挥舱：顶部一道冷光 + 全屏 CRT 扫描线 + 四周暗角。 */
+[data-theme='hud'] .site-aurora {
+  background:
+    radial-gradient(70rem 26rem at 50% -10%, rgb(198 255 61 / 0.08), transparent 70%),
+    radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.55) 100%);
+}
+
+[data-theme='hud'] .site-aurora::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, rgb(198 255 61 / 0.025) 0 1px, transparent 1px 3px);
+}
+
+/* 星云：多团紫粉蓝色云气缓慢漂移。 */
+[data-theme='nebula'] .site-aurora {
+  background:
+    radial-gradient(42rem 30rem at 18% 12%, rgb(139 92 246 / 0.26), transparent 70%),
+    radial-gradient(36rem 26rem at 86% 22%, rgb(236 72 153 / 0.17), transparent 70%),
+    radial-gradient(40rem 30rem at 62% 92%, rgb(56 189 248 / 0.13), transparent 70%),
+    radial-gradient(30rem 22rem at 6% 88%, rgb(168 85 247 / 0.14), transparent 70%);
+  background-size: 140% 140%;
+}
+
+/* 面板 = 装饰层（指挥舱的角标）+ 填充（padding-box）+ 描边渐变（border-box），三者都由风格变量决定。 */
 @utility glass-panel {
-  border: 1px solid color-mix(in oklab, var(--text-primary) 9%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--panel) 82%, transparent),
-    color-mix(in oklab, var(--panel) 62%, transparent)
-  );
+  border: 1px solid transparent;
+  background:
+    var(--glass-deco),
+    var(--glass-fill) padding-box,
+    var(--glass-edge) border-box;
   box-shadow:
     inset 0 1px 0 color-mix(in oklab, var(--text-primary) 6%, transparent),
     0 24px 60px -24px rgb(0 0 0 / 0.6);
@@ -205,7 +343,7 @@
 }
 
 .text-gradient-brand {
-  background: linear-gradient(100deg, #67e8f9 0%, var(--brand) 35%, #818cf8 75%, #c084fc 100%);
+  background: var(--title-gradient);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -269,6 +407,213 @@
   }
 }
 
+@keyframes nebula-drift {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 100% 60%;
+  }
+}
+
+@keyframes hud-flicker {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--node-accent),
+      0 0 18px -4px var(--node-accent);
+  }
+  48% {
+    box-shadow:
+      0 0 0 1px var(--node-accent),
+      0 0 18px -4px var(--node-accent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px transparent,
+      0 0 0 0 transparent;
+  }
+  52% {
+    box-shadow:
+      0 0 0 1px var(--node-accent),
+      0 0 26px -2px var(--node-accent);
+  }
+}
+
+/* ---------- 星辰首屏 ---------- */
+
+/* 只有星辰风格显示首屏；data-theme 由首屏脚本在绘制前写入，不会闪现。 */
+.stellar-intro {
+  display: none;
+}
+
+[data-theme='stellar'] .stellar-intro {
+  display: block;
+}
+
+[data-theme='stellar'] .site-aurora {
+  background:
+    radial-gradient(80rem 50rem at 50% 42%, rgb(40 60 110 / 0.2), transparent 70%),
+    radial-gradient(40rem 30rem at 82% 92%, rgb(120 70 30 / 0.08), transparent 70%);
+}
+
+[data-theme='stellar'] .text-gradient-brand {
+  filter: drop-shadow(0 0 24px rgb(201 220 255 / 0.35));
+}
+
+.stellar-intro-fade {
+  opacity: calc(1 - var(--p, 0) * 1.5);
+  transform: translateY(calc(var(--p, 0) * -48px));
+}
+
+button.stellar-intro-fade {
+  transform: translate(-50%, calc(var(--p, 0) * -48px));
+}
+
+.stellar-word {
+  text-shadow: 0 0 28px rgb(201 220 255 / 0.25);
+}
+
+/* 旧说明先快速淡出、新说明稍后淡入，两条说明不会同时叠在一起。 */
+.stellar-caption {
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+[data-formation='galaxy'] .stellar-caption[data-caption='galaxy'],
+[data-formation='glyph'] .stellar-caption[data-caption='glyph'],
+[data-formation='constellation'] .stellar-caption[data-caption='constellation'] {
+  opacity: 1;
+  transition: opacity 700ms ease 260ms;
+}
+
+@keyframes stellar-letter {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+
+@keyframes stellar-tagline {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+  }
+  30%,
+  70% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+@keyframes stellar-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+.stellar-letter {
+  display: inline-block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stellar-letter {
+    opacity: 0;
+    animation: stellar-letter 650ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  }
+
+  /* 标语只在开场出现：星空亮起后淡入，银河旋出时淡出，把画面让给银河。 */
+  .stellar-tagline {
+    opacity: 0;
+    animation: stellar-tagline 3400ms 2300ms ease forwards;
+  }
+
+  /* 形态说明与滚动提示：银河成形后才出现。 */
+  .stellar-late {
+    opacity: 0;
+    animation: stellar-letter 1000ms 6400ms ease forwards;
+  }
+
+  .stellar-bounce {
+    animation: stellar-bounce 1.8s ease-in-out infinite;
+  }
+}
+
+/* ---------- 风格细节 ---------- */
+
+[data-theme='hud'] h1,
+[data-theme='hud'] h2 {
+  letter-spacing: -0.01em;
+}
+
+[data-theme='hud'] .canvas-agent-card,
+[data-theme='hud'] .canvas-system-node {
+  border-radius: 3px;
+}
+
+/* 指挥舱一律方角：胶囊标签、示例短语、开关和按钮等全部收成 2px；
+   头像、状态点、进度条这类本身就是圆形的元素保留原样。 */
+[data-theme='hud']
+  :is(.rounded-full, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-lg, .rounded-md):not(
+    .keep-round,
+    .keep-round *,
+    [data-slot='slider'] *,
+    [data-slot='switch'],
+    [data-slot='switch'] *,
+    [role='meter'],
+    [role='meter'] *
+  ) {
+  border-radius: 2px;
+}
+
+[data-theme='hud'] .showcase-pill {
+  rx: 2px;
+}
+
+[data-theme='hud'] .canvas-agent-card {
+  background:
+    repeating-linear-gradient(180deg, rgb(198 255 61 / 0.03) 0 1px, transparent 1px 3px),
+    color-mix(in oklab, var(--panel) 94%, transparent);
+}
+
+[data-theme='hud'] .text-gradient-brand {
+  text-shadow: none;
+  filter: drop-shadow(0 0 18px rgb(198 255 61 / 0.35));
+}
+
+[data-theme='nebula'] .canvas-agent-card,
+[data-theme='nebula'] .canvas-system-node {
+  border-radius: 20px;
+}
+
+[data-theme='nebula'] .canvas-agent-card {
+  background:
+    radial-gradient(
+      120% 90% at 0% 0%,
+      color-mix(in oklab, var(--node-accent) 22%, transparent),
+      transparent 60%
+    ),
+    rgb(18 13 43 / 0.82);
+}
+
+[data-theme='nebula'] .text-gradient-brand {
+  filter: drop-shadow(0 0 20px rgb(192 107 255 / 0.55));
+}
+
 @keyframes gradient-pan {
   to {
     background-position: -200% 0;
@@ -309,6 +654,14 @@
 
   .radar-sweep {
     animation: canvas-rotate 4s linear infinite;
+  }
+
+  [data-theme='nebula'] .site-aurora {
+    animation: nebula-drift 26s ease-in-out infinite alternate;
+  }
+
+  [data-theme='hud'] .canvas-agent-card[data-status='running'] {
+    animation: hud-flicker 2.4s steps(1, end) infinite;
   }
 
   .radar-ring {

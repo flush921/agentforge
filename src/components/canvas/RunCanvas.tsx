@@ -46,6 +46,10 @@ function edgeColor(edge: GraphEdge, source: GraphNode | undefined, state: RunSta
 
 export type CameraMode = 'follow' | 'overview' | 'manual'
 
+const OVERVIEW_PADDING = 0.08
+/** 低于这个缩放，卡片文字就读不清了。 */
+const READABLE_ZOOM = 0.55
+
 function CanvasFlow({
   state,
   onOpen,
@@ -58,10 +62,17 @@ function CanvasFlow({
   initialCamera: CameraMode
 }) {
   const [cameraMode, setCameraMode] = useState<CameraMode>(initialCamera)
+  // 全览分两种：用户点「全览」或确认计划时完整框住全图；运行结束自动切换时，
+  // 图太长就以可读的最低缩放对准收尾部分（审校、返工与交付），其余可拖动查看。
+  const [overviewAll, setOverviewAll] = useState(initialCamera === 'overview')
   const width = useStore((store) => store.width)
+  const height = useStore((store) => store.height)
   const direction = width > 0 && width < 720 ? 'TB' : 'LR'
   const reducedMotion = useReducedMotion()
-  const { fitView, getNodes, viewportInitialized } = useReactFlow<CanvasFlowNode, CanvasFlowEdge>()
+  const { fitView, getNodes, getNodesBounds, setViewport, viewportInitialized } = useReactFlow<
+    CanvasFlowNode,
+    CanvasFlowEdge
+  >()
   const graph = useMemo(() => deriveGraph(state), [state])
   const topologyKey = useMemo(
     () =>
@@ -75,8 +86,10 @@ function CanvasFlow({
       graph.nodes.filter((node) => node.status === 'running').map((node) => node.id),
     )
     const focus = new Set(running)
+    // 镜头框住运行节点及其直接上下游：既看清材料来源，也知道下一步交给谁。
     for (const edge of graph.edges) {
       if (running.has(edge.target)) focus.add(edge.source)
+      if (running.has(edge.source)) focus.add(edge.target)
     }
     return [...focus].sort().join('|')
   }, [graph])
@@ -92,6 +105,7 @@ function CanvasFlow({
   useEffect(() => {
     if (terminal && previousTerminal.current !== true) {
       setCameraMode('overview')
+      setOverviewAll(false)
     } else if (!terminal && previousTerminal.current === true) {
       setCameraMode((mode) => (mode === 'manual' ? 'manual' : 'follow'))
     }
@@ -103,7 +117,37 @@ function CanvasFlow({
     if (!viewportInitialized || cameraLayoutKey.length === 0) return
     const duration = reducedMotion || instantFit ? 0 : 600
     if (cameraMode === 'overview') {
-      void fitView({ padding: 0.08, maxZoom: 1, includeHiddenNodes: true, duration })
+      const nodes = getNodes()
+      const bounds = getNodesBounds(nodes)
+      const fitZoom = Math.min(
+        width / (bounds.width * (1 + OVERVIEW_PADDING * 2)),
+        height / (bounds.height * (1 + OVERVIEW_PADDING * 2)),
+      )
+      if (overviewAll || nodes.length === 0 || !(fitZoom < READABLE_ZOOM)) {
+        void fitView({
+          padding: OVERVIEW_PADDING,
+          maxZoom: 1,
+          includeHiddenNodes: true,
+          duration,
+        })
+        return
+      }
+      const zoom = READABLE_ZOOM
+      const margin = 24
+      void setViewport(
+        direction === 'LR'
+          ? {
+              x: width - margin - (bounds.x + bounds.width) * zoom,
+              y: height / 2 - (bounds.y + bounds.height / 2) * zoom,
+              zoom,
+            }
+          : {
+              x: width / 2 - (bounds.x + bounds.width / 2) * zoom,
+              y: height - margin - (bounds.y + bounds.height) * zoom,
+              zoom,
+            },
+        { duration },
+      )
       return
     }
     if (cameraMode === 'manual' || focusKey.length === 0) return
@@ -121,12 +165,18 @@ function CanvasFlow({
   }, [
     cameraLayoutKey,
     cameraMode,
+    direction,
     fitView,
     focusKey,
     getNodes,
+    getNodesBounds,
+    height,
     instantFit,
+    overviewAll,
     reducedMotion,
+    setViewport,
     viewportInitialized,
+    width,
   ])
 
   const nodes = useMemo<CanvasFlowNode[]>(
@@ -239,7 +289,10 @@ function CanvasFlow({
           aria-label="全览"
           aria-pressed={cameraMode === 'overview'}
           className={cameraMode === 'overview' ? '!text-brand' : undefined}
-          onClick={() => setCameraMode('overview')}
+          onClick={() => {
+            setOverviewAll(true)
+            setCameraMode('overview')
+          }}
         >
           <Scan className="size-4" aria-hidden />
         </ControlButton>

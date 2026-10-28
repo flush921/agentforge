@@ -41,7 +41,7 @@ function AgentNodeView({ data }: NodeProps<AgentFlowNode>) {
       >
         <span aria-hidden className="canvas-card-accent absolute inset-x-0 top-0 h-[2px]" />
         <span className="flex min-w-0 items-start gap-2.5">
-          <span className="canvas-avatar-ring relative mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full">
+          <span className="canvas-avatar-ring keep-round relative mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full">
             <span
               className="absolute inset-0 rounded-full"
               style={{ backgroundColor: 'var(--node-accent)' }}

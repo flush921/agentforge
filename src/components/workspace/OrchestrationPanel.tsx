@@ -13,7 +13,7 @@ import type { RunPhase } from '@/stores/run-store'
 function EmptyCanvas() {
   return (
     <div className="canvas-stage relative flex h-full min-h-[360px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/[0.06] p-8 text-center">
-      <div aria-hidden className="relative flex size-56 items-center justify-center">
+      <div aria-hidden className="keep-round relative flex size-56 items-center justify-center">
         <span className="radar-ring absolute inset-0 rounded-full border border-brand/15" />
         <span className="radar-ring absolute inset-7 rounded-full border border-brand/20 [animation-delay:-1s]" />
         <span className="radar-ring absolute inset-14 rounded-full border border-brand/25 [animation-delay:-2s]" />

@@ -48,8 +48,10 @@ function FlowEdgeView({
         markerEnd={markerEnd}
         style={{
           stroke: color,
-          strokeWidth: active ? 2 : 1.5,
-          strokeOpacity: active ? 1 : done ? 0.45 : 1,
+          // 返工虚线在缩小时按比例加粗，保证全览里仍能看清返工回路。
+          strokeWidth:
+            kind === 'feedback' ? Math.min(3.5, 2 / Math.max(zoom, 0.01)) : active ? 2 : 1.5,
+          strokeOpacity: active || kind === 'feedback' ? 1 : done ? 0.45 : 1,
           strokeDasharray: kind === 'flow' ? undefined : '6 4',
           filter: active ? 'drop-shadow(0 0 3px var(--brand))' : undefined,
         }}

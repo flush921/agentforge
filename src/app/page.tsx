@@ -1,6 +1,7 @@
 import { SiteHeader } from '@/components/site/SiteHeader'
 import { OrchestrationShowcase } from '@/components/visual/OrchestrationShowcase'
 import { ScrambleText } from '@/components/visual/ScrambleText'
+import { StellarIntro } from '@/components/visual/StellarIntro'
 import { HomeClient } from './HomeClient'
 
 const stats = [
@@ -13,6 +14,7 @@ export default function Home() {
   return (
     <div className="min-h-screen text-text-primary">
       <SiteHeader libraryHref="#library" />
+      <StellarIntro />
       <main className="mx-auto w-full max-w-[1160px] px-4 pb-20 sm:px-6">
         <section className="grid items-center gap-10 pb-12 pt-12 lg:grid-cols-[1.05fr_1fr] lg:pt-16">
           <div>
