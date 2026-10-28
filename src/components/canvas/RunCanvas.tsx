@@ -95,6 +95,8 @@ function CanvasFlow({
   }, [graph])
   const terminal = ['completed', 'failed', 'cancelled'].includes(state.status)
   const previousTerminal = useRef<boolean | undefined>(undefined)
+  // 镜头第一次对准内容之前，视口还是默认位置；此时先把当前已有的节点完整框进来。
+  const hasAimed = useRef(false)
   const cameraLayoutKey = graph.nodes.length === 0 ? '' : `${topologyKey}@${direction}`
   const positions = useMemo(
     () => layoutGraph(graph.nodes, graph.edges, direction),
@@ -117,6 +119,7 @@ function CanvasFlow({
     if (!viewportInitialized || cameraLayoutKey.length === 0) return
     const duration = reducedMotion || instantFit ? 0 : 600
     if (cameraMode === 'overview') {
+      hasAimed.current = true
       const nodes = getNodes()
       const bounds = getNodesBounds(nodes)
       const fitZoom = Math.min(
@@ -150,7 +153,20 @@ function CanvasFlow({
       )
       return
     }
-    if (cameraMode === 'manual' || focusKey.length === 0) return
+    if (cameraMode === 'manual') return
+    if (focusKey.length === 0) {
+      if (!hasAimed.current) {
+        hasAimed.current = true
+        void fitView({
+          padding: OVERVIEW_PADDING,
+          maxZoom: 1,
+          includeHiddenNodes: true,
+          duration: 0,
+        })
+      }
+      return
+    }
+    hasAimed.current = true
     const focusIds = new Set(focusKey.split('|'))
     const focusNodes = getNodes().filter((node) => focusIds.has(node.id))
     if (focusNodes.length === 0) return
@@ -237,8 +253,8 @@ function CanvasFlow({
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      fitView
-      fitViewOptions={{ padding: 0.08, maxZoom: 1, includeHiddenNodes: true }}
+      // 不能打开 ReactFlow 自带的 fitView：它会在节点测量完成后把整张图重新塞回视口，
+      // 覆盖掉上面按状态决定的镜头（跟随 / 可读缩放的收尾视角 / 全览）。镜头只由上面的 effect 控制。
       nodesDraggable={false}
       nodesConnectable={false}
       nodesFocusable={false}
