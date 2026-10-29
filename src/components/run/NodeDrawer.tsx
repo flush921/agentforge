@@ -5,7 +5,7 @@ import { Check, Wrench, X } from 'lucide-react'
 import { Markdown } from '@/components/markdown/Markdown'
 import { formatTokens, roleInfo } from '@/lib/canvas/format'
 import { JUDGE_DIMENSIONS } from '@/lib/contracts/ultra'
-import { LANE_LABELS, totalScore } from '@/lib/orchestrator/ultra'
+import { LANE_LABELS, totalScore, winnerOf } from '@/lib/orchestrator/ultra'
 import type { RunState } from '@/lib/run/types'
 import { cn } from '@/lib/utils'
 import { roleIcons } from '../canvas/role-icons'
@@ -39,6 +39,15 @@ export function NodeDrawer({
   const nodeState = nodeId === null ? undefined : state.nodes[nodeId]
   const info = nodeState === undefined ? undefined : roleInfo(nodeState.node.role)
   const Icon = nodeState === undefined ? undefined : roleIcons[nodeState.node.role]
+  // 择优与校准只打分、不调用工具；校准审的是被采用的那一路，而不是它依赖的择优节点。
+  const gate = nodeState?.node.role === 'judge' || nodeState?.node.role === 'aligner'
+  const winner = nodeState?.node.role === 'aligner' ? winnerOf(state, nodeState.node) : undefined
+  const materialIds =
+    nodeState === undefined
+      ? []
+      : winner !== undefined
+        ? [winner.node.id]
+        : nodeState.node.dependsOn
 
   return (
     <Sheet
@@ -140,11 +149,11 @@ export function NodeDrawer({
                 <p className="leading-6 text-text-primary">{nodeState.node.instruction}</p>
               </DrawerSection>
               <DrawerSection title="材料来源">
-                {nodeState.node.dependsOn.length === 0 ? (
+                {materialIds.length === 0 ? (
                   <p className="text-text-secondary">用户任务与系统入口</p>
                 ) : (
                   <ul className="space-y-1.5">
-                    {nodeState.node.dependsOn.map((id) => (
+                    {materialIds.map((id) => (
                       <li
                         key={id}
                         className="rounded-lg border border-border/70 bg-background/45 px-3 py-2 text-text-secondary"
@@ -155,40 +164,42 @@ export function NodeDrawer({
                   </ul>
                 )}
               </DrawerSection>
-              <DrawerSection title={`工具调用时间线（${nodeState.toolCalls.length}）`}>
-                {nodeState.toolCalls.length === 0 ? (
-                  <p className="text-ink-muted">本环节没有工具调用。</p>
-                ) : (
-                  <ol className="space-y-2">
-                    {nodeState.toolCalls.map((call) => (
-                      <li
-                        key={call.callId}
-                        className="rounded-lg border border-border/70 bg-background/45 p-3"
-                      >
-                        <div className="flex items-center gap-2 font-mono text-xs">
-                          <Wrench className="size-3.5 text-brand" aria-hidden />
-                          <span>{call.tool}</span>
-                          {call.ok === undefined ? (
-                            <span className="ml-auto text-warning">调用中</span>
-                          ) : call.ok ? (
-                            <Check className="ml-auto size-4 text-success" aria-label="成功" />
-                          ) : (
-                            <X className="ml-auto size-4 text-danger" aria-label="失败" />
-                          )}
-                        </div>
-                        <pre className="mt-2 overflow-x-auto text-[11px] whitespace-pre-wrap text-text-secondary">
-                          {JSON.stringify(call.input)}
-                        </pre>
-                        {call.summary !== undefined ? (
-                          <p className="mt-2 text-xs leading-5 text-text-secondary">
-                            {call.summary}
-                          </p>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </DrawerSection>
+              {gate ? null : (
+                <DrawerSection title={`工具调用时间线（${nodeState.toolCalls.length}）`}>
+                  {nodeState.toolCalls.length === 0 ? (
+                    <p className="text-ink-muted">本环节没有工具调用。</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {nodeState.toolCalls.map((call) => (
+                        <li
+                          key={call.callId}
+                          className="rounded-lg border border-border/70 bg-background/45 p-3"
+                        >
+                          <div className="flex items-center gap-2 font-mono text-xs">
+                            <Wrench className="size-3.5 text-brand" aria-hidden />
+                            <span>{call.tool}</span>
+                            {call.ok === undefined ? (
+                              <span className="ml-auto text-warning">调用中</span>
+                            ) : call.ok ? (
+                              <Check className="ml-auto size-4 text-success" aria-label="成功" />
+                            ) : (
+                              <X className="ml-auto size-4 text-danger" aria-label="失败" />
+                            )}
+                          </div>
+                          <pre className="mt-2 overflow-x-auto text-[11px] whitespace-pre-wrap text-text-secondary">
+                            {JSON.stringify(call.input)}
+                          </pre>
+                          {call.summary !== undefined ? (
+                            <p className="mt-2 text-xs leading-5 text-text-secondary">
+                              {call.summary}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </DrawerSection>
+              )}
               {nodeState.reasoning.length > 0 ? (
                 <DrawerSection title="思考过程">
                   <details className="rounded-lg border border-border/70 bg-background/45 px-3 py-2">
