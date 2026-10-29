@@ -159,7 +159,7 @@ npm run start
 | `LLM_MODE`     | 模型接入模式：`mock` 或 `live`   | 否                                | `mock`                        |
 | `LLM_BASE_URL` | OpenAI 兼容接口基础地址          | `LLM_MODE=live` 时必填            | 无                            |
 | `LLM_API_KEY`  | 模型接口密钥                     | live 时必填且不能为空白           | 无                            |
-| `LLM_MODEL`    | 模型名称                         | 否                                | `deepseek-v4.1-flash`         |
+| `LLM_MODEL`    | 模型名称                         | 否                                | `deepseek-flash`              |
 | `ACCESS_CODE`  | 演示访问码；空字符串等价于未设置 | 公网演示建议设置                  | 空，不启用校验                |
 | `NODE_ENV`     | Node/Next 运行环境               | 生产 standalone 设为 `production` | 由 Next 命令设置              |
 | `PORT`         | HTTP 监听端口                    | 否                                | `3000`                        |

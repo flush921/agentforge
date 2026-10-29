@@ -8,7 +8,7 @@ describe('parseEnv', () => {
     expect(env.LLM_MODE).toBe('mock')
     expect(env.LLM_BASE_URL).toBeUndefined()
     expect(env.LLM_API_KEY).toBeUndefined()
-    expect(env.LLM_MODEL).toBe('deepseek-v4.1-flash')
+    expect(env.LLM_MODEL).toBe('deepseek-flash')
     expect(env.ACCESS_CODE).toBeUndefined()
   })
 
@@ -42,7 +42,7 @@ describe('parseEnv', () => {
       LLM_MODE: 'live',
       LLM_BASE_URL: 'https://example.invalid/v1',
       LLM_API_KEY: 'unit-test-key',
-      LLM_MODEL: 'deepseek-v4.1-flash',
+      LLM_MODEL: 'deepseek-flash',
     })
   })
 

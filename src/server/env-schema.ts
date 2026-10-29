@@ -5,7 +5,7 @@ const envSchema = z
     LLM_MODE: z.enum(['mock', 'live']).default('mock'),
     LLM_BASE_URL: z.url().optional(),
     LLM_API_KEY: z.string().optional(),
-    LLM_MODEL: z.string().default('deepseek-v4.1-flash'),
+    LLM_MODEL: z.string().default('deepseek-flash'),
     ACCESS_CODE: z
       .string()
       .optional()
