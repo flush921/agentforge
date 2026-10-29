@@ -3,7 +3,13 @@ import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { parseEnv } from '@/server/env-schema'
-import { createLiveClient, FINAL_STEP_NOTICE, MAX_AGENT_STEPS } from './openai-compatible'
+import { toApiError } from './errors'
+import {
+  abortPartError,
+  createLiveClient,
+  FINAL_STEP_NOTICE,
+  MAX_AGENT_STEPS,
+} from './openai-compatible'
 import type { AgentLlmRequest, AgentStreamPart } from './types'
 
 const env = parseEnv({
@@ -195,6 +201,19 @@ describe('llm.streamAgent', () => {
     const call = model.doStreamCalls[0]
     expect(call?.providerOptions).toEqual({ llm: { thinking: { type: 'disabled' } } })
     expect(call?.temperature).toBe(0.7)
+  })
+
+  it('SDK 自己超时中止时报可重试的超时，调用方取消时才报取消', () => {
+    const timedOut = abortPartError(new AbortController().signal)
+    expect(timedOut.name).toBe('TimeoutError')
+    expect(toApiError(timedOut, new AbortController().signal)).toMatchObject({
+      error: { code: 'timeout' },
+      retryable: true,
+    })
+
+    const controller = new AbortController()
+    controller.abort()
+    expect(abortPartError(controller.signal).name).toBe('AbortError')
   })
 
   it('error part 向外抛出且 SDK 不打印错误对象', async () => {

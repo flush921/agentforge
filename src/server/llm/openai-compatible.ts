@@ -34,6 +34,16 @@ export const MAX_AGENT_STEPS = 6
 export const FINAL_STEP_NOTICE =
   '工具调用次数已用完，不能再调用任何工具。请直接基于上面已经得到的计算结果，用文字写出本环节完整的最终产出；没算到的数据明确标注「未核算」，不要编造。'
 
+/**
+ * SDK 的 abort 片段有两种来源：调用方取消，或 SDK 自己的 timeout（totalMs / stepMs）到期。
+ * 后者调用方的 signal 没有中止，要报成可重试的超时，而不是当成取消（那样会被映射为内部错误）。
+ */
+export function abortPartError(signal: AbortSignal): DOMException {
+  return signal.aborted
+    ? new DOMException('aborted', 'AbortError')
+    : new DOMException('模型调用超时', 'TimeoutError')
+}
+
 function abortError(): DOMException {
   return new DOMException('aborted', 'AbortError')
 }
@@ -115,7 +125,7 @@ export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {
             if (!NoObjectGeneratedError.isInstance(part.error)) throw part.error
             break
           case 'abort':
-            throw new DOMException('aborted', 'AbortError')
+            throw abortPartError(req.signal)
           default:
             break
         }
@@ -210,7 +220,7 @@ export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {
           case 'error':
             throw part.error
           case 'abort':
-            throw new DOMException('aborted', 'AbortError')
+            throw abortPartError(req.signal)
           default:
             break
         }
