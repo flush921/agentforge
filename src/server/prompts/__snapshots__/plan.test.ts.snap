@@ -5,15 +5,14 @@ exports[`buildPlanPrompt > L2 包含数据区、对应级别规则和工具清�
   "instructions": "你是多 Agent 编排规划师。请根据任务和指定的编排级别，设计一张由 Agent 节点组成的有向无环图（DAG）。
 
 本次级别：L2（流水线）
-结构要求：严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。不要使用 reviewer 角色。
-节点数：2~3 个（含审校节点）
+结构要求：严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。不要使用 reviewer 角色。本级别不设审校：不要添加「核对、检查、审核、复核」这类只做质量检查的节点，最终节点直接产出交付给用户的完整答案。
+节点数：2~3 个
 
 可用角色：
 - researcher 调研员：收集资料与事实
 - analyst 分析师：比较、归纳与推理
 - writer 写作者：把材料组织成文
 - coder 程序员：编写代码或完成计算
-- reviewer 审校员：只做质量检查，不产出正文
 - synthesizer 整合者：合并多路结果
 - specialist 领域专家：基于助手的专长直接作答
 
@@ -31,7 +30,7 @@ exports[`buildPlanPrompt > L2 包含数据区、对应级别规则和工具清�
 7. id 用小写英文和下划线，例如 research_market。
 
 只输出一个 JSON 对象，格式：{"strategy":"...","nodes":[{"id":"...","role":"...","title":"...","instruction":"...","dependsOn":[],"tools":[]}],"outputNodeId":"..."}
-审校节点需额外带 "reviewTarget" 字段；其他节点不得带该字段。",
+所有节点都不得带 reviewTarget 字段。",
   "user": "<assistant>
 名称：学习助手
 领域：教育规划
@@ -54,15 +53,14 @@ exports[`buildPlanPrompt > L3 包含数据区、对应级别规则和工具清�
   "instructions": "你是多 Agent 编排规划师。请根据任务和指定的编排级别，设计一张由 Agent 节点组成的有向无环图（DAG）。
 
 本次级别：L3（并行）
-结构要求：并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。不要使用 reviewer 角色。
-节点数：3~6 个（含审校节点）
+结构要求：并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。不要使用 reviewer 角色。本级别不设审校：不要添加「核对、检查、审核、复核」这类只做质量检查的节点，最终节点直接产出交付给用户的完整答案。
+节点数：3~6 个
 
 可用角色：
 - researcher 调研员：收集资料与事实
 - analyst 分析师：比较、归纳与推理
 - writer 写作者：把材料组织成文
 - coder 程序员：编写代码或完成计算
-- reviewer 审校员：只做质量检查，不产出正文
 - synthesizer 整合者：合并多路结果
 - specialist 领域专家：基于助手的专长直接作答
 
@@ -80,7 +78,7 @@ exports[`buildPlanPrompt > L3 包含数据区、对应级别规则和工具清�
 7. id 用小写英文和下划线，例如 research_market。
 
 只输出一个 JSON 对象，格式：{"strategy":"...","nodes":[{"id":"...","role":"...","title":"...","instruction":"...","dependsOn":[],"tools":[]}],"outputNodeId":"..."}
-审校节点需额外带 "reviewTarget" 字段；其他节点不得带该字段。",
+所有节点都不得带 reviewTarget 字段。",
   "user": "<assistant>
 名称：学习助手
 领域：教育规划

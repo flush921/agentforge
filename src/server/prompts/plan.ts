@@ -4,14 +4,17 @@ import type { AssistantSpec } from '@/lib/contracts/assistant'
 import type { ToolName } from '@/lib/contracts/common'
 import type { ComplexityAssessment } from '@/lib/contracts/plan'
 import { LEVELS } from '@/lib/orchestrator/level'
-import { ROLE_LINES, toolLines } from './catalog'
+import { roleLines, toolLines } from './catalog'
 import { assistantBrief, INJECTION_NOTICE, wrapData } from './shared'
 
 type PlannerLevel = 2 | 3 | 4
 
+const NO_REVIEW =
+  '不要使用 reviewer 角色。本级别不设审校：不要添加「核对、检查、审核、复核」这类只做质量检查的节点，最终节点直接产出交付给用户的完整答案。'
+
 const LEVEL_RULES: Record<PlannerLevel, string> = {
-  2: '严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。不要使用 reviewer 角色。',
-  3: '并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。不要使用 reviewer 角色。',
+  2: `严格串行流水线：节点首尾相接成一条链，每个节点只依赖前一个节点。${NO_REVIEW}`,
+  3: `并行扇出再汇合：至少两个节点同时开始（都没有依赖，或依赖同一个节点），并且至少一个节点同时汇合两个以上上游的产出。${NO_REVIEW}`,
   4: '先用并行或串行完成主体工作，再挂一个审校节点作为质量闸门。审校节点的 role 为 reviewer，dependsOn 和 reviewTarget 都只指向最终节点；其他节点都不得依赖审校节点；最终节点不能是审校节点。',
 }
 
@@ -27,10 +30,10 @@ export function buildPlanPrompt(
 
 本次级别：L${level}（${config.label}）
 结构要求：${LEVEL_RULES[level]}
-节点数：${config.minNodes}~${config.maxNodes} 个（含审校节点）
+节点数：${config.minNodes}~${config.maxNodes} 个${level === 4 ? '（含审校节点）' : ''}
 
 可用角色：
-${ROLE_LINES}
+${roleLines({ reviewer: level === 4 })}
 
 可用工具：
 ${toolLines(tools)}
@@ -45,7 +48,7 @@ ${toolLines(tools)}
 7. id 用小写英文和下划线，例如 research_market。
 
 只输出一个 JSON 对象，格式：{"strategy":"...","nodes":[{"id":"...","role":"...","title":"...","instruction":"...","dependsOn":[],"tools":[]}],"outputNodeId":"..."}
-审校节点需额外带 "reviewTarget" 字段；其他节点不得带该字段。`
+${level === 4 ? '审校节点需额外带 "reviewTarget" 字段；其他节点不得带该字段。' : '所有节点都不得带 reviewTarget 字段。'}`
 
   const { dims } = assessment
   const assessmentText = `各维度：subtasks=${dims.subtasks}, tools=${dims.tools}, parallel=${dims.parallel}, rigor=${dims.rigor}, length=${dims.length}；理由：${assessment.rationale}`

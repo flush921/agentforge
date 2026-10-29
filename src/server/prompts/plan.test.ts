@@ -28,6 +28,21 @@ describe('buildPlanPrompt', () => {
     expect(result).toMatchSnapshot()
   })
 
+  it.each([2, 3] as const)('L%s 不向模型列出 reviewer 角色，也不提审校节点', (level) => {
+    const { instructions } = buildPlanPrompt(testAssistant, task, level, testAssessment, [])
+    expect(instructions).not.toContain('- reviewer ')
+    expect(instructions).not.toContain('含审校节点')
+    expect(instructions).toContain('不要添加「核对、检查、审核、复核」')
+    expect(instructions).toContain('所有节点都不得带 reviewTarget 字段。')
+  })
+
+  it('L4 列出 reviewer 角色并说明 reviewTarget', () => {
+    const { instructions } = buildPlanPrompt(testAssistant, task, 4, testAssessment, [])
+    expect(instructions).toContain('- reviewer 审校员')
+    expect(instructions).toContain('（含审校节点）')
+    expect(instructions).toContain('审校节点需额外带 "reviewTarget" 字段')
+  })
+
   it('可用工具为空时明确要求空数组', () => {
     const result = buildPlanPrompt(testAssistant, task, 2, testAssessment, [])
     expect(result.instructions).toContain('无。所有节点的 tools 必须是空数组。')

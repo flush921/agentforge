@@ -9,7 +9,10 @@ import { validatePlan } from '@/lib/orchestrator/validate-plan'
 import type { LlmClient, LlmJsonRequest } from '@/server/llm/types'
 import { buildPlanPrompt } from '@/server/prompts/plan'
 import { retryMessage } from '@/server/prompts/shared'
+import { isCancellation, withTransientRetry } from './retry'
 import type { ServiceResult } from './types'
+
+const ROUTE = '/api/orchestrate/plan'
 
 const planOutputSchema = planSchema.omit({ level: true })
 
@@ -29,16 +32,26 @@ export async function planTask(
   for (let attempt = 0; attempt < 2; attempt += 1) {
     let text: string
     try {
-      const result = await llm.generateJson({
-        kind: 'plan',
-        instructions: built.instructions,
-        messages,
-        temperature: 0.3,
-        maxOutputTokens: 2500,
+      // 规划一旦失败，整次运行就会退回单 Agent，所以对中转站的临时抖动先重试一次。
+      const result = await withTransientRetry(
+        () =>
+          llm.generateJson({
+            kind: 'plan',
+            instructions: built.instructions,
+            messages,
+            temperature: 0.3,
+            maxOutputTokens: 2500,
+            signal,
+          }),
+        ROUTE,
         signal,
-      })
+        (code) => console.error(`[api] ${ROUTE} retry ${code}`),
+      )
       text = result.text
     } catch (error) {
+      if (isCancellation(error, signal)) {
+        throw error
+      }
       return { ok: false, error }
     }
 
@@ -64,5 +77,8 @@ export async function planTask(
     }
   }
 
+  // 两次都没通过校验时整次运行会退回单 Agent；记下每次的首条错误，方便事后定位是哪条规则卡住了。
+  const firstErrors = attempts.map((item) => (item.errors[0] ?? '').slice(0, 80)).join(' | ')
+  console.error(`[api] ${ROUTE} fallback L${level} ${firstErrors}`)
   return { ok: true, value: { plan: null, source: 'fallback', attempts } }
 }

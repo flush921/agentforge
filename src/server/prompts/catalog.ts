@@ -58,9 +58,18 @@ export const CAPABILITY_LINES = capabilitySchema.options
   .map((capability) => `- ${capability}：${CAPABILITY_DESCRIPTIONS[capability]}`)
   .join('\n')
 
-export const ROLE_LINES = agentRoleSchema.options
-  .map((role) => `- ${role} ${ROLE_DESCRIPTIONS[role]}`)
-  .join('\n')
+/**
+ * 规划提示词里的角色清单。L2/L3 不允许审校节点，就干脆不把 reviewer 列给模型看——
+ * 实测清单里有 reviewer 时，模型几乎每次都会在计划末尾加一个「最终核对」节点，被校验打回。
+ */
+export function roleLines(options: { reviewer: boolean }): string {
+  return agentRoleSchema.options
+    .filter((role) => options.reviewer || role !== 'reviewer')
+    .map((role) => `- ${role} ${ROLE_DESCRIPTIONS[role]}`)
+    .join('\n')
+}
+
+export const ROLE_LINES = roleLines({ reviewer: true })
 
 export function toolLines(tools: ToolName[]): string {
   if (tools.length === 0) {

@@ -13,6 +13,7 @@ import type { LlmClient } from '@/server/llm/types'
 import { toApiError } from '@/server/llm/errors'
 import { buildAssessPrompt } from '@/server/prompts/assess'
 import { z } from 'zod'
+import { isCancellation, waitForRetry } from './retry'
 import type { ServiceResult } from './types'
 
 const ROUTE = '/api/orchestrate/assess'
@@ -36,29 +37,6 @@ const assessmentOutputSchema = z.strictObject({
 function fallbackResult(reason: string): ServiceResult<ComplexityAssessment> {
   console.error(`[api] ${ROUTE} fallback ${reason}`)
   return { ok: true, value: FALLBACK_ASSESSMENT }
-}
-
-function waitForRetry(signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return Promise.reject(new DOMException('aborted', 'AbortError'))
-  return new Promise((resolve, reject) => {
-    const onAbort = () => {
-      clearTimeout(timer)
-      signal.removeEventListener('abort', onAbort)
-      reject(new DOMException('aborted', 'AbortError'))
-    }
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort)
-      resolve()
-    }, 800)
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
-}
-
-function isCancellation(error: unknown, signal: AbortSignal): boolean {
-  return (
-    signal.aborted ||
-    (typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError')
-  )
 }
 
 function toAssessment(output: z.infer<typeof assessmentOutputSchema>): ComplexityAssessment {

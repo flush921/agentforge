@@ -80,18 +80,61 @@ describe('planTask', () => {
     expect(requests[1]?.messages[2]?.content).toContain('web_search')
   })
 
-  it('上游异常直接失败且不重试', async () => {
-    const error = new APICallError({
+  function upstream(statusCode: number, isRetryable: boolean): APICallError {
+    return new APICallError({
       message: 'upstream',
       url: 'https://example.invalid',
       requestBodyValues: {},
-      statusCode: 500,
-      isRetryable: true,
+      statusCode,
+      isRetryable,
     })
+  }
+
+  it('可重试的上游异常等待后重试一次，重试成功则正常返回计划（不再因一次抖动退回单 Agent）', async () => {
+    const { client, requests } = fakeLlm([upstream(500, true), JSON.stringify(validL2)])
+    const result = await planTask(client, testAssistant, '复杂任务', 2, testAssessment, signal)
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { plan: validL2, source: 'planner', attempts: [] },
+    })
+    expect(requests).toHaveLength(2)
+    // 重试发的是同一份请求，不带修复提示。
+    expect(requests[1]?.messages).toEqual(requests[0]?.messages)
+  })
+
+  it('连续两次可重试异常：返回第二次的异常，不再继续重试', async () => {
+    const second = upstream(503, true)
+    const { client, requests } = fakeLlm([upstream(500, true), second, JSON.stringify(validL2)])
+    const result = await planTask(client, testAssistant, '复杂任务', 2, testAssessment, signal)
+
+    expect(result).toEqual({ ok: false, error: second })
+    expect(requests).toHaveLength(2)
+  })
+
+  it('不可重试的异常（如 400）直接失败，不浪费一次调用', async () => {
+    const error = upstream(400, false)
     const { client, requests } = fakeLlm([error, JSON.stringify(validL2)])
     const result = await planTask(client, testAssistant, '复杂任务', 2, testAssessment, signal)
 
     expect(result).toEqual({ ok: false, error })
+    expect(requests).toHaveLength(1)
+  })
+
+  it('重试等待期间被取消时抛出取消，不再发起请求', async () => {
+    const controller = new AbortController()
+    const { client, requests } = fakeLlm([upstream(500, true), JSON.stringify(validL2)])
+    const pending = planTask(
+      client,
+      testAssistant,
+      '复杂任务',
+      2,
+      testAssessment,
+      controller.signal,
+    )
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     expect(requests).toHaveLength(1)
   })
 })
