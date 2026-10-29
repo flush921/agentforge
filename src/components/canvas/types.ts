@@ -19,6 +19,8 @@ export type AgentNodeData = {
   onOpen: (nodeId: string) => void
   /** Ultra 多路节点在择优中的结果。 */
   pick?: 'picked' | 'unpicked'
+  /** Ultra 择优节点：上游各路里实际完成的路数。 */
+  lanesFinished?: number
 }
 
 export type UltraGroupData = {

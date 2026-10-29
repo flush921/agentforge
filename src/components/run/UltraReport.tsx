@@ -34,7 +34,23 @@ export function UltraReport({ state }: { state: RunState }) {
             className="flex min-w-0 items-center gap-2 rounded-md border border-ultra/15 bg-background/40 px-2 py-1"
           >
             <span className="min-w-0 flex-1 truncate text-text-primary">{row.title}</span>
-            <span className="shrink-0 font-mono text-[10px] text-ink-muted">{row.lanes} 路</span>
+            <span
+              className={cn(
+                'shrink-0 font-mono text-[10px]',
+                row.winner !== undefined && row.finished < row.lanes
+                  ? 'text-warning'
+                  : 'text-ink-muted',
+              )}
+              title={
+                row.winner !== undefined && row.finished < row.lanes
+                  ? `${row.lanes - row.finished} 路未能完成`
+                  : undefined
+              }
+            >
+              {row.winner !== undefined && row.finished < row.lanes
+                ? `${row.finished}/${row.lanes} 路`
+                : `${row.lanes} 路`}
+            </span>
             {row.winner === undefined ? (
               <span className="inline-flex items-center gap-1 text-ink-muted">
                 {row.status === 'pending' ? (
@@ -52,6 +68,8 @@ export function UltraReport({ state }: { state: RunState }) {
                 <span className="text-ultra">{LANE_LABELS[row.winner]}</span>
                 {row.winnerScore !== undefined ? (
                   <span className="font-mono text-ink-muted">{row.winnerScore}</span>
+                ) : row.finished === 1 ? (
+                  <span className="text-[10px] text-warning">直接采用</span>
                 ) : null}
                 {row.tie ? (
                   <span

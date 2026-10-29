@@ -10,7 +10,13 @@ import { roleIcons } from '../role-icons'
 import type { UltraGateFlowNode } from '../types'
 import { AgentStatusLine, CanvasHandles, NodeBadge, nodeStatusLabel, sameAgentData } from './shared'
 
-function JudgeDetail({ nodeState }: { nodeState: NodeState }): ReactNode {
+function JudgeDetail({
+  nodeState,
+  finished,
+}: {
+  nodeState: NodeState
+  finished: number | undefined
+}): ReactNode {
   const result = nodeState.judge
   const lanes = nodeState.node.dependsOn.length
   if (result === undefined) {
@@ -20,6 +26,11 @@ function JudgeDetail({ nodeState }: { nodeState: NodeState }): ReactNode {
   return (
     <span className="flex items-center gap-1">
       <span className="font-semibold text-ultra">采用「{LANE_LABELS[result.winner]}」</span>
+      {finished !== undefined && finished < lanes ? (
+        <span className="text-warning">
+          {finished}/{lanes} 路完成
+        </span>
+      ) : null}
       {picked !== undefined ? (
         <span className="font-mono text-ink-muted">
           {totalScore(picked.scores)}/30
@@ -86,7 +97,7 @@ function UltraGateNodeView({ data }: NodeProps<UltraGateFlowNode>) {
             </span>
             <span className="mt-0.5 block truncate text-[10px]">
               {judge ? (
-                <JudgeDetail nodeState={nodeState} />
+                <JudgeDetail nodeState={nodeState} finished={data.lanesFinished} />
               ) : (
                 <AlignDetail nodeState={nodeState} />
               )}

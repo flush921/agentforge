@@ -23,6 +23,13 @@ function mapUsage(usage: LanguageModelUsage | undefined): Usage {
 
 const RELAY_RETRY_DELAYS = [600, 1500] as const
 
+/**
+ * 一个子 Agent 最多走几步（每步一次模型调用，可含多次工具调用）。
+ * 最后一步禁止调用工具，逼模型写出正文：计算类任务里模型常常一路调用计算器，
+ * 实测 20 路里有 8 路在 6 步内全部用于工具调用（37~81 次），一个字正文都没写。
+ */
+export const MAX_AGENT_STEPS = 6
+
 function abortError(): DOMException {
   return new DOMException('aborted', 'AbortError')
 }
@@ -118,7 +125,11 @@ export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {
         instructions: req.instructions,
         messages: req.messages,
         tools: buildToolSet(req.tools),
-        stopWhen: isStepCount(6),
+        stopWhen: isStepCount(MAX_AGENT_STEPS),
+        prepareStep: ({ stepNumber }) =>
+          req.tools.length > 0 && stepNumber >= MAX_AGENT_STEPS - 1
+            ? { toolChoice: 'none' as const }
+            : undefined,
         abortSignal: req.signal,
         timeout: { totalMs: 120_000, stepMs: 60_000 },
         maxRetries: 1,

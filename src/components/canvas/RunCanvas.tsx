@@ -27,7 +27,7 @@ import {
 } from '@/lib/canvas/derive-graph'
 import { roleInfo } from '@/lib/canvas/format'
 import { groupBoxes, layoutGraph, NODE_SIZE } from '@/lib/canvas/layout'
-import { laneOutcome } from '@/lib/orchestrator/ultra'
+import { laneOutcome, lanesOf } from '@/lib/orchestrator/ultra'
 import type { RunState } from '@/lib/run/types'
 import { FlowEdge } from './edges/FlowEdge'
 import { AgentNode } from './nodes/AgentNode'
@@ -318,6 +318,11 @@ function CanvasFlow({
             const nodeState = graphNode.ref === undefined ? undefined : state.nodes[graphNode.ref]
             if (nodeState === undefined) return null
             const pick = laneOutcome(state, nodeState.node)
+            const lanesFinished =
+              nodeState.node.role === 'judge'
+                ? lanesOf(state, nodeState.node).filter((lane) => lane.status === 'completed')
+                    .length
+                : undefined
             return {
               ...base,
               type:
@@ -330,6 +335,7 @@ function CanvasFlow({
                 direction,
                 onOpen,
                 ...(pick !== undefined ? { pick } : {}),
+                ...(lanesFinished !== undefined ? { lanesFinished } : {}),
               },
             }
           }

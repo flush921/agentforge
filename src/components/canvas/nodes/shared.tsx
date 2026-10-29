@@ -105,6 +105,7 @@ export function sameAgentData(a: AgentNodeData, b: AgentNodeData): boolean {
     a.nodeState === b.nodeState &&
     a.direction === b.direction &&
     a.pick === b.pick &&
+    a.lanesFinished === b.lanesFinished &&
     a.onOpen === b.onOpen
   )
 }

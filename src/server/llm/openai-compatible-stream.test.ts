@@ -3,7 +3,7 @@ import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { parseEnv } from '@/server/env-schema'
-import { createLiveClient } from './openai-compatible'
+import { createLiveClient, MAX_AGENT_STEPS } from './openai-compatible'
 import type { AgentLlmRequest, AgentStreamPart } from './types'
 
 const env = parseEnv({
@@ -134,6 +134,44 @@ describe('llm.streamAgent', () => {
       expect(parts[2].summary).toMatch(/（UTC）$/)
     }
     expect(parts.at(-1)).toMatchObject({ usage: { inputTokens: 10, outputTokens: 14 } })
+  })
+
+  it('一直调用工具时，最后一步禁止调用工具，逼模型写出正文', async () => {
+    const toolStep = (index: number) =>
+      streamResult([
+        {
+          type: 'tool-call',
+          toolCallId: `c${index}`,
+          toolName: 'datetime',
+          input: '{"timezone":"UTC"}',
+        },
+        {
+          type: 'finish',
+          finishReason: { unified: 'tool-calls', raw: undefined },
+          usage: usage(),
+        },
+      ])
+    const model = new MockLanguageModelV4({
+      doStream: [
+        ...Array.from({ length: MAX_AGENT_STEPS - 1 }, (_, i) => toolStep(i)),
+        textResult('结论'),
+      ],
+    })
+    const parts = await collect(model, makeRequest({ tools: ['datetime'] }))
+
+    expect(model.doStreamCalls).toHaveLength(MAX_AGENT_STEPS)
+    for (const call of model.doStreamCalls.slice(0, -1)) {
+      expect(call.toolChoice).not.toEqual({ type: 'none' })
+    }
+    expect(model.doStreamCalls.at(-1)?.toolChoice).toEqual({ type: 'none' })
+    expect(parts.filter((part) => part.type === 'text')).toEqual([{ type: 'text', delta: '结论' }])
+  })
+
+  it('没有工具时不限制 toolChoice', async () => {
+    const model = new MockLanguageModelV4({ doStream: async () => textResult('答案') })
+    await collect(model)
+
+    expect(model.doStreamCalls[0]?.toolChoice).not.toEqual({ type: 'none' })
   })
 
   it('thinking 开启时不传 temperature，并设置低推理强度', async () => {

@@ -166,6 +166,8 @@ export interface UltraGroupReport {
   group: string
   title: string
   lanes: number
+  /** 实际完成的路数；有路失败时小于 lanes。 */
+  finished: number
   winner?: Lane
   winnerScore?: number
   walkover: boolean
@@ -194,6 +196,10 @@ export function ultraReport(state: RunState): UltraGroupReport[] {
         group: node.id,
         title: node.title,
         lanes: judge?.node.dependsOn.length ?? 0,
+        finished:
+          judge === undefined
+            ? 0
+            : lanesOf(state, judge.node).filter((lane) => lane.status === 'completed').length,
         ...(result !== undefined ? { winner: result.winner } : {}),
         ...(winnerScores !== undefined ? { winnerScore: totalScore(winnerScores) } : {}),
         walkover: result?.walkover === true,

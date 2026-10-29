@@ -240,6 +240,7 @@ describe('Ultra 编排', () => {
 
     const report = ultraReport(state)
     expect(report.map((row) => row.lanes)).toEqual([5, 5, 3, 5])
+    expect(report.map((row) => row.finished)).toEqual([5, 5, 3, 5])
     expect(report[0]).toMatchObject({
       group: 'research_a',
       winner: 'depth',
@@ -258,6 +259,7 @@ describe('Ultra 编排', () => {
 
     expect(judge?.ultra?.lanes?.map((item) => item.lane)).toEqual(['depth', 'practical', 'novel'])
     expect(judge?.upstream).toHaveLength(3)
+    expect(ultraReport(state)[0]).toMatchObject({ lanes: 5, finished: 3 })
     expect(state).toMatchObject({ status: 'completed', degraded: false })
   })
 
@@ -273,6 +275,7 @@ describe('Ultra 编排', () => {
     expect(calls.step.some((call) => call.req.node.id === 'research_a_uj')).toBe(false)
     expect(state.nodes.research_a_uj?.judge).toMatchObject({ winner: 'practical', walkover: true })
     expect(state.nodes.research_a?.output).toBe(laneOutput('research_a', 'practical'))
+    expect(ultraReport(state)[0]).toMatchObject({ lanes: 5, finished: 1, walkover: true })
   })
 
   it('一个环节的所有路都失败时，环节跳过并降级作答', async () => {
