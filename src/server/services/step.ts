@@ -277,8 +277,8 @@ async function generateParsed<T>(
 
 /**
  * 第一层审阅：多路择优。各路成果匿名编号后，同时发起两次评审：一次按取向顺序，一次倒序，
- * 每一路的两次分数取平均，抵消模型偏向排在前面的方案。
- * 采用哪一路由代码按平均总分决定；最高分并列时看两次评审的偏好，仍并列则取排在前面的取向。
+ * 每一路的两次分数和名次分别取平均，抵消模型偏向排在前面的方案。
+ * 采用哪一路由代码决定：先比平均总分，并列时比平均名次，仍并列则取排在前面的取向。
  */
 async function* runJudge(
   llm: LlmClient,
@@ -321,12 +321,19 @@ async function* runJudge(
     if (output === undefined || order === undefined) {
       return []
     }
+    // ranking 里是这次呈现顺序下的方案编号，换算成各取向的名次（1 为最好）。
+    const ranks = new Map<Lane, number>()
+    output.ranking.forEach((no, index) => {
+      const lane = order[no - 1]?.lane
+      if (lane !== undefined) ranks.set(lane, index + 1)
+    })
     return [
       {
         scores: new Map(
           order.map((entry, position) => [entry.lane, output.scores[position] ?? []]),
         ),
-        prefer: order[output.prefer - 1]?.lane,
+        ranks,
+        top: order[(output.ranking[0] ?? 1) - 1]?.lane,
         reason: output.reason,
       },
     ]
@@ -343,25 +350,26 @@ async function* runJudge(
   } else {
     const scores = lanes.map(({ lane }) => {
       const sets = votes.map((vote) => vote.scores.get(lane) ?? [])
+      const ranks = votes.map((vote) => vote.ranks.get(lane) ?? lanes.length)
       return {
         lane,
         scores: JUDGE_DIMENSIONS.map(
           (_, dimension) => sets.reduce((sum, set) => sum + (set[dimension] ?? 0), 0) / sets.length,
         ),
+        rank: ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length,
       }
     })
-    const best = Math.max(...scores.map((item) => totalScore(item.scores)))
-    const leaders = scores.filter((item) => totalScore(item.scores) === best)
-    const preferred = (lane: Lane) => votes.filter((vote) => vote.prefer === lane).length
-    const winner = leaders.reduce((current, item) =>
-      preferred(item.lane) > preferred(current.lane) ? item : current,
-    ).lane
-    const reason = (votes.find((vote) => vote.prefer === winner) ?? votes[0]!).reason
+    // 按总分降序、平均名次升序挑第一；两者都相同时 reduce 保留排在前面的取向。
+    const winner = scores.reduce((best, item) => {
+      const diff = totalScore(item.scores) - totalScore(best.scores)
+      return diff > 0 || (diff === 0 && item.rank < best.rank) ? item : best
+    }).lane
+    const reason = (votes.find((vote) => vote.top === winner) ?? votes[0]!).reason
     result = { winner, scores, reason }
   }
 
   const tie = result.scores !== undefined && isTie(result.scores)
-  const summary = `采用「${LANE_LABELS[result.winner]}」一路${tie ? '（并列最高，按评审偏好）' : ''}：${result.reason}`
+  const summary = `采用「${LANE_LABELS[result.winner]}」一路${tie ? '（总分并列，按评审排名）' : ''}：${result.reason}`
   yield { type: 'text', delta: summary }
   if (signal.aborted) {
     return

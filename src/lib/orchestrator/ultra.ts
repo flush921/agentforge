@@ -156,7 +156,7 @@ export function totalScore(scores: readonly number[]): number {
   return Math.round(scores.reduce((sum, score) => sum + score, 0) * 10) / 10
 }
 
-/** 最高的两路总分持平，采用哪一路由评审偏好决定。 */
+/** 最高的两路总分持平，采用哪一路由两次评审的平均名次决定。 */
 export function isTie(scores: ReadonlyArray<{ scores: readonly number[] }>): boolean {
   const totals = scores.map((item) => totalScore(item.scores)).sort((a, b) => b - a)
   return totals.length >= 2 && totals[0] === totals[1]

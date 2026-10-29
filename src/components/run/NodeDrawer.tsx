@@ -89,13 +89,14 @@ export function NodeDrawer({
                     <table className="w-full text-center text-xs">
                       <thead className="text-[10px] text-text-secondary">
                         <tr>
-                          <th className="py-1 text-left font-normal">正倒序评审均分</th>
+                          <th className="py-1 text-left font-normal">正倒序评审平均</th>
                           {JUDGE_DIMENSIONS.map((name) => (
                             <th key={name} className="py-1 font-normal">
                               {name}
                             </th>
                           ))}
                           <th className="py-1 font-normal">总分</th>
+                          <th className="py-1 font-normal">名次</th>
                         </tr>
                       </thead>
                       <tbody className="font-mono">
@@ -115,6 +116,7 @@ export function NodeDrawer({
                               </td>
                             ))}
                             <td className="py-1 font-semibold">{totalScore(item.scores)}</td>
+                            <td className="py-1">{item.rank ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>

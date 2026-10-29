@@ -74,7 +74,7 @@ export function UltraReport({ state }: { state: RunState }) {
                 {row.tie ? (
                   <span
                     className="rounded border border-ultra/30 px-0.5 text-[9px] text-ultra/80"
-                    title="最高分并列，按评审偏好判定"
+                    title="总分并列，按两次评审的平均名次判定"
                   >
                     并列
                   </span>

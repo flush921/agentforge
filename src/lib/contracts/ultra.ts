@@ -15,15 +15,26 @@ export const JUDGE_DIMENSIONS = ['完整度', '可靠性', '可用性'] as const
 const llmScores = z.array(z.number().int().min(1).max(10)).length(JUDGE_DIMENSIONS.length)
 
 /**
- * 择优评审员的 LLM 输出。各路成果以「方案 1…N」匿名呈现，模型只打分；
- * 采用哪一路由代码按两次评审（正序、倒序）的平均总分决定，prefer 只在平分时参考。
+ * 择优评审员的 LLM 输出。各路成果以「方案 1…N」匿名呈现，模型打分并给出完整排名；
+ * 采用哪一路由代码决定：先比两次评审（正序、倒序）的平均总分，并列时比平均名次。
  */
 export function judgeOutputSchema(count: number) {
-  return z.strictObject({
-    scores: z.array(llmScores).length(count),
-    prefer: z.number().int().min(1).max(count),
-    reason: z.string().trim().min(1).max(200),
-  })
+  return z
+    .strictObject({
+      scores: z.array(llmScores).length(count),
+      /** 方案编号从好到差排列，必须恰好包含 1…count 各一次。 */
+      ranking: z.array(z.number().int().min(1).max(count)).length(count),
+      reason: z.string().trim().min(1).max(200),
+    })
+    .superRefine((output, ctx) => {
+      if (new Set(output.ranking).size !== count) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ranking'],
+          message: `ranking 必须把 1~${count} 每个编号各列一次`,
+        })
+      }
+    })
 }
 
 /** 两次评审取平均后的分数，可能带 .5。 */
@@ -33,7 +44,14 @@ export const judgeResultSchema = z.strictObject({
   winner: laneSchema,
   /** 只有一路完成或评审失败而直接采用时没有分数。 */
   scores: z
-    .array(z.strictObject({ lane: laneSchema, scores: averagedScores }))
+    .array(
+      z.strictObject({
+        lane: laneSchema,
+        scores: averagedScores,
+        /** 两次评审的平均名次，1 为最好；旧记录没有这个字段。 */
+        rank: z.number().min(1).max(MAX_LANES).optional(),
+      }),
+    )
     .min(2)
     .max(MAX_LANES)
     .optional(),

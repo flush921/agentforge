@@ -41,8 +41,8 @@ export function buildJudgePrompt(
   ).join('\n')
   const count = outputs.length
   const example = JSON.stringify({
-    scores: Array.from({ length: count }, (_, index) => [8 - (index % 2), 7, 8]),
-    prefer: 1,
+    scores: Array.from({ length: count }, (_, index) => [7 - (index % 2), 6 + (index % 3), 7]),
+    ranking: Array.from({ length: count }, (_, index) => index + 1),
     reason: '...',
   })
 
@@ -54,10 +54,16 @@ ${brief(req)}
 评分维度（每项 1~10 的整数）：
 ${dimensions}
 
+分数含义（要拉开差距，不要都打高分）：
+- 9~10：几乎挑不出可改之处，只留给明显优于其他方案的那一份
+- 7~8：合格、可用，但有可以更好的地方；大多数合格成果应落在这里
+- 5~6：能用，但有明显缺漏、口径不清或需要读者自己补工作
+- 1~4：有事实错误、答非所问或无法直接使用
+
 判定规则：
 - 各份成果的先后顺序是随机的，不要因为顺序偏向任何一份；篇幅长不等于更好。
 - scores 按方案编号顺序排列，共 ${count} 项；每项是该方案在上述三个维度的分数，按维度顺序排列。
-- prefer 是你认为整体最好的方案编号（1~${count}）。
+- ranking 是全部方案编号从好到差的排名，必须恰好包含 1~${count} 每个编号各一次，不允许并列。即使分数相近，也要分出先后。
 - reason 用一句话（不超过 80 字）说明最佳方案好在哪里，会展示给用户；只描述成果本身，不要写方案编号或先后顺序。
 
 只输出一个 JSON 对象，格式：${example}`,

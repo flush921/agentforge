@@ -107,8 +107,8 @@ describe('第一层审阅：多路择优', () => {
     vi.restoreAllMocks()
   })
 
-  it('正序、倒序各评一次，分数按取向对齐后取平均，由代码决定采用哪一路', async () => {
-    // 正序：严谨、深度、落地；倒序：落地、深度、严谨。
+  it('正序、倒序各评一次，分数和名次按取向对齐后取平均，由代码决定采用哪一路', async () => {
+    // 正序：严谨、深度、落地；倒序：落地、深度、严谨。ranking 里是本次呈现顺序下的编号。
     const { client, requests } = fakeLlm([
       json({
         scores: [
@@ -116,7 +116,7 @@ describe('第一层审阅：多路择优', () => {
           [8, 8, 9],
           [6, 6, 6],
         ],
-        prefer: 2,
+        ranking: [2, 1, 3],
         reason: '洞察更深',
       }),
       json({
@@ -125,7 +125,7 @@ describe('第一层审阅：多路择优', () => {
           [8, 9, 9],
           [8, 7, 6],
         ],
-        prefer: 2,
+        ranking: [2, 1, 3],
         reason: '更可落地',
       }),
     ])
@@ -134,6 +134,8 @@ describe('第一层审阅：多路择优', () => {
     expect(requests).toHaveLength(2)
     expect(requests[0]?.kind).toBe('judge')
     expect(requests[0]?.instructions).toContain('交给了 3 个 Agent')
+    expect(requests[0]?.instructions).toContain('ranking 是全部方案编号从好到差的排名')
+    expect(requests[0]?.instructions).toContain('9~10：几乎挑不出可改之处')
     expect(requests[0]?.messages[0]?.content).toMatch(
       /<candidate no="1">\n严谨稿[\s\S]*<candidate no="3">\n落地稿/,
     )
@@ -145,9 +147,9 @@ describe('第一层审阅：多路择优', () => {
       result: {
         winner: 'depth',
         scores: [
-          { lane: 'rigor', scores: [7.5, 7, 6.5] },
-          { lane: 'depth', scores: [8, 8.5, 9] },
-          { lane: 'practical', scores: [6.5, 6.5, 6] },
+          { lane: 'rigor', scores: [7.5, 7, 6.5], rank: 2.5 },
+          { lane: 'depth', scores: [8, 8.5, 9], rank: 1 },
+          { lane: 'practical', scores: [6.5, 6.5, 6], rank: 2.5 },
         ],
         reason: '洞察更深',
       },
@@ -164,7 +166,7 @@ describe('第一层审阅：多路择优', () => {
     const reply = (best: number) =>
       json({
         scores: five.map((_, index) => (index === best ? [9, 9, 9] : [6, 6, 6])),
-        prefer: best + 1,
+        ranking: [best + 1, ...five.map((_, index) => index + 1).filter((no) => no !== best + 1)],
         reason: '覆盖最全',
       })
     const { client, requests } = fakeLlm([
@@ -173,7 +175,7 @@ describe('第一层审阅：多路择优', () => {
           [9, 9, 9],
           [6, 6, 6],
         ],
-        prefer: 1,
+        ranking: [1, 2],
         reason: '少了',
       }),
       reply(1),
@@ -190,24 +192,75 @@ describe('第一层审阅：多路择优', () => {
     })
   })
 
-  it('最高分并列时看两次评审的偏好，仍并列就取排在前面的取向', async () => {
+  it('排名有重复编号时回喂错误重试', async () => {
+    const valid = json({
+      scores: [
+        [6, 6, 6],
+        [8, 8, 8],
+        [7, 7, 7],
+      ],
+      ranking: [2, 3, 1],
+      reason: '更深入',
+    })
+    const { client, requests } = fakeLlm([
+      json({
+        scores: [
+          [6, 6, 6],
+          [8, 8, 8],
+          [7, 7, 7],
+        ],
+        ranking: [2, 2, 1],
+        reason: '重复',
+      }),
+      valid,
+      valid,
+    ])
+    const events = await collect(client, judgeRequest())
+
+    expect(requests).toHaveLength(3)
+    expect(requests[2]?.messages.at(-1)?.content).toContain('每个编号各列一次')
+    expect(events.find((event) => event.type === 'judge')).toMatchObject({
+      result: { winner: 'depth' },
+    })
+  })
+
+  it('总分并列时按两次评审的平均名次决定', async () => {
     const even = [
       [8, 8, 8],
       [8, 8, 8],
       [8, 8, 8],
     ]
+    // 正序名次：深度 1、严谨 2、落地 3；倒序（落地、深度、严谨）名次：落地 1、深度 2、严谨 3。
+    // 平均名次：深度 1.5、落地 2、严谨 2.5，采用深度。
     const tie = fakeLlm([
-      json({ scores: even, prefer: 1, reason: '甲' }),
-      json({ scores: even, prefer: 1, reason: '乙' }),
+      json({ scores: even, ranking: [2, 1, 3], reason: '甲' }),
+      json({ scores: even, ranking: [1, 2, 3], reason: '乙' }),
     ])
     const events = await collect(tie.client, judgeRequest())
 
-    // 正序偏好严谨，倒序偏好排在最前的落地：一比一，取排在前面的严谨。
     expect(events.find((event) => event.type === 'judge')).toMatchObject({
-      result: { winner: 'rigor' },
+      result: { winner: 'depth' },
     })
     expect(events.at(-1)).toMatchObject({
-      output: expect.stringContaining('并列最高，按评审偏好'),
+      output: expect.stringContaining('总分并列，按评审排名'),
+    })
+  })
+
+  it('总分和平均名次都相同时取排在前面的取向', async () => {
+    const even = [
+      [8, 8, 8],
+      [8, 8, 8],
+      [8, 8, 8],
+    ]
+    // 正序名次：严谨 1、深度 2、落地 3；倒序名次：落地 1、深度 2、严谨 3。平均名次都是 2。
+    const tie = fakeLlm([
+      json({ scores: even, ranking: [1, 2, 3], reason: '甲' }),
+      json({ scores: even, ranking: [1, 2, 3], reason: '乙' }),
+    ])
+    const events = await collect(tie.client, judgeRequest())
+
+    expect(events.find((event) => event.type === 'judge')).toMatchObject({
+      result: { winner: 'rigor' },
     })
   })
 
@@ -220,7 +273,7 @@ describe('第一层审阅：多路择优', () => {
           [9, 9, 9],
           [7, 7, 7],
         ],
-        prefer: 2,
+        ranking: [2, 3, 1],
         reason: '更完整',
       }),
       '不是 JSON',
@@ -232,9 +285,9 @@ describe('第一层审阅：多路择优', () => {
       result: {
         winner: 'depth',
         scores: [
-          { lane: 'rigor', scores: [6, 6, 6] },
-          { lane: 'depth', scores: [9, 9, 9] },
-          { lane: 'practical', scores: [7, 7, 7] },
+          { lane: 'rigor', scores: [6, 6, 6], rank: 3 },
+          { lane: 'depth', scores: [9, 9, 9], rank: 1 },
+          { lane: 'practical', scores: [7, 7, 7], rank: 2 },
         ],
       },
     })
@@ -249,7 +302,7 @@ describe('第一层审阅：多路择优', () => {
           [6, 6, 6],
           [7, 7, 7],
         ],
-        prefer: 1,
+        ranking: [1, 3, 2],
         reason: '最可执行',
       }),
     ])

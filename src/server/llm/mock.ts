@@ -143,9 +143,14 @@ function responseText(req: LlmJsonRequest): string {
     )
     const scores = candidates.map(mockScores)
     const sums = scores.map((item) => item.reduce((total, score) => total + score, 0))
+    // 按总分从高到低排名；同分时按成果内容的哈希排先后，交叉评审两次得到同一个排名。
+    const ranking = candidates
+      .map((text, index) => ({ no: index + 1, sum: sums[index] ?? 0, hash: textHash(text) }))
+      .sort((left, right) => right.sum - left.sum || left.hash - right.hash)
+      .map((item) => item.no)
     return JSON.stringify({
       scores,
-      prefer: sums.indexOf(Math.max(...sums)) + 1,
+      ranking,
       reason: '要点覆盖更完整，依据交代更清楚，下游可以直接使用。',
     })
   }
