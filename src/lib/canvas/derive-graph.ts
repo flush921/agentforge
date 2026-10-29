@@ -210,8 +210,14 @@ export function deriveGraph(state: RunState): Graph {
     edge.done = statusById.get(edge.source) === 'completed'
     const target = state.nodes[edge.target.slice(2)]
     const winner = target?.node.role === 'judge' ? target.judge?.winner : undefined
-    const lane = state.nodes[edge.source.slice(2)]?.node.ultra?.lane
-    if (edge.target.startsWith('n:') && winner !== undefined && lane !== undefined) {
+    const source = state.nodes[edge.source.slice(2)]
+    const lane = source?.node.ultra?.lane
+    if (
+      edge.target.startsWith('n:') &&
+      winner !== undefined &&
+      lane !== undefined &&
+      source?.status === 'completed'
+    ) {
       edge.pick = lane === winner ? 'picked' : 'unpicked'
     }
   }

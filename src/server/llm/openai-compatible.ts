@@ -151,7 +151,8 @@ export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {
               }
             : undefined,
         abortSignal: req.signal,
-        timeout: { totalMs: 120_000, stepMs: 60_000 },
+        // 开思考写最终报告单步实测最长约 71 秒（16000 输出上限下），原来的 60 秒会把它掐断。
+        timeout: { totalMs: 300_000, stepMs: 150_000 },
         maxRetries: 1,
         maxOutputTokens: req.maxOutputTokens,
         ...(req.thinking ? {} : { temperature: 0.7 }),

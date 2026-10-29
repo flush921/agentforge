@@ -158,13 +158,13 @@ describe('runAgentStep 工作节点', () => {
     expect(second.streamRequests[0]).toMatchObject({
       tools: ['datetime'],
       thinking: true,
-      maxOutputTokens: 8000,
+      maxOutputTokens: 16000,
     })
   })
 
   it.each([
-    { thinking: true, isFinal: true, expected: 8000 },
-    { thinking: true, isFinal: false, expected: 8000 },
+    { thinking: true, isFinal: true, expected: 16000 },
+    { thinking: true, isFinal: false, expected: 16000 },
     { thinking: false, isFinal: true, expected: 4000 },
     { thinking: false, isFinal: false, expected: 3000 },
   ])(

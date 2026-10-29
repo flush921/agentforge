@@ -33,6 +33,21 @@ export function judgeOutputSchema(count: number) {
           path: ['ranking'],
           message: `ranking 必须把 1~${count} 每个编号各列一次`,
         })
+        return
+      }
+      // 排名要和分数一致：总分高的必须排在前面，排名只在同分的方案之间决定先后。
+      // 实测模型会直接照抄呈现顺序作为排名，正倒序一平均就全部抵消。
+      const total = (no: number) =>
+        (output.scores[no - 1] ?? []).reduce((sum, score) => sum + score, 0)
+      for (let index = 1; index < output.ranking.length; index += 1) {
+        if (total(output.ranking[index]!) > total(output.ranking[index - 1]!)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['ranking'],
+            message: 'ranking 要和 scores 一致：总分高的方案必须排在前面，同分的方案再按优劣分先后',
+          })
+          return
+        }
       }
     })
 }

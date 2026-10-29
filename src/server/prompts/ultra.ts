@@ -40,11 +40,20 @@ export function buildJudgePrompt(
     (name, index) => `${index + 1}. ${name}：${DIMENSION_HINTS[name]}`,
   ).join('\n')
   const count = outputs.length
-  const example = JSON.stringify({
-    scores: Array.from({ length: count }, (_, index) => [7 - (index % 2), 6 + (index % 3), 7]),
-    ranking: Array.from({ length: count }, (_, index) => index + 1),
-    reason: '...',
-  })
+  // 示例的排名按示例分数算出，故意不是 1、2、3…的顺序，避免模型照抄呈现顺序。
+  const exampleScores = Array.from({ length: count }, (_, index) => [
+    7 - (index % 2),
+    6 + (index % 3),
+    7,
+  ])
+  const exampleRanking = exampleScores
+    .map((scores, index) => ({
+      no: index + 1,
+      total: scores.reduce((sum, score) => sum + score, 0),
+    }))
+    .sort((left, right) => right.total - left.total)
+    .map((item) => item.no)
+  const example = JSON.stringify({ scores: exampleScores, ranking: exampleRanking, reason: '...' })
 
   return {
     instructions: `你是多 Agent 团队的择优评审员，负责第一层审阅。同一个环节交给了 ${count} 个 Agent 分别独立完成，你要比较这 ${count} 份成果，选出最好的一份。
@@ -63,7 +72,7 @@ ${dimensions}
 判定规则：
 - 各份成果的先后顺序是随机的，不要因为顺序偏向任何一份；篇幅长不等于更好。
 - scores 按方案编号顺序排列，共 ${count} 项；每项是该方案在上述三个维度的分数，按维度顺序排列。
-- ranking 是全部方案编号从好到差的排名，必须恰好包含 1~${count} 每个编号各一次，不允许并列。即使分数相近，也要分出先后。
+- ranking 是全部方案编号从好到差的排名，必须恰好包含 1~${count} 每个编号各一次，不允许并列。排名要和分数一致：总分高的排在前面；总分相同的方案，再按你判断的优劣分出先后。不要照抄方案的编号顺序。
 - reason 用一句话（不超过 80 字）说明最佳方案好在哪里，会展示给用户；只描述成果本身，不要写方案编号或先后顺序。
 
 只输出一个 JSON 对象，格式：${example}`,

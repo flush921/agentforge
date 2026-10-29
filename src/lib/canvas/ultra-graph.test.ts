@@ -4,6 +4,7 @@ import type { Plan } from '../contracts/plan'
 import { validPlans } from '../fixtures/plans'
 import { reduceEvents } from '../run/reducer'
 import { deriveGraph, visibleNodeIds } from './derive-graph'
+import { laneOutcome } from '../orchestrator/ultra'
 import { groupBoxes, layoutGraph, NODE_SIZE } from './layout'
 
 function events(bodies: RunEventBody[]): RunEvent[] {
@@ -85,6 +86,20 @@ describe('Ultra 画布', () => {
     const graph = deriveGraph(
       reduceEvents(
         ultraEvents([
+          ...started(
+            'research_a_u1',
+            'research_a_u2',
+            'research_a_u3',
+            'research_a_u4',
+            'research_a_u5',
+          ),
+          ...completed(
+            'research_a_u1',
+            'research_a_u2',
+            'research_a_u3',
+            'research_a_u4',
+            'research_a_u5',
+          ),
           ...started('research_a_uj'),
           {
             type: 'node.judge',
@@ -209,5 +224,36 @@ describe('逐步显现', () => {
     expect(visible.has('n:research_a')).toBe(true)
     expect(visible.has('n:analyst')).toBe(false)
     expect(visible.has('n:reviewer')).toBe(false)
+  })
+})
+
+describe('失败的一路', () => {
+  it('择优结束后，失败的一路不标 unpicked，保留失败状态', () => {
+    const state = reduceEvents(
+      ultraEvents([
+        ...started('research_a_u1', 'research_a_u2'),
+        ...completed('research_a_u2'),
+        {
+          type: 'node.failed',
+          nodeId: 'research_a_u1',
+          error: { code: 'timeout', message: '模型响应超时' },
+        },
+        ...started('research_a_uj'),
+        {
+          type: 'node.judge',
+          nodeId: 'research_a_uj',
+          result: { winner: 'depth', walkover: true, reason: '直接采用' },
+        },
+      ]),
+    )
+    const graph = deriveGraph(state)
+    const pick = (source: string) =>
+      graph.edges.find((edge) => edge.id === `flow:n:${source}->n:research_a_uj`)?.pick
+
+    expect(pick('research_a_u2')).toBe('picked')
+    expect(pick('research_a_u1')).toBeUndefined()
+    expect(graph.nodes.find((node) => node.id === 'n:research_a_u1')?.status).toBe('failed')
+    expect(laneOutcome(state, state.nodes.research_a_u1!.node)).toBeUndefined()
+    expect(laneOutcome(state, state.nodes.research_a_u2!.node)).toBe('picked')
   })
 })

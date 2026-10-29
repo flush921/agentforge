@@ -25,8 +25,13 @@ import { buildAlignFixPrompt, buildAlignPrompt, buildJudgePrompt } from '@/serve
 const ROUTE = '/api/agent/step'
 const zeroUsage = (): Usage => ({ inputTokens: 0, outputTokens: 0 })
 
+/**
+ * 单步输出上限（思考 + 正文一起算，按实际用量计费，上限只防失控）。
+ * 开思考写最终报告时，实测 5 路里 3 路在 8000 处被截断、报告停在半句；放到 16000 后全部自然结束，
+ * 最多用了 13203。
+ */
 export function workerOutputBudget(thinking: boolean, isFinal: boolean): number {
-  if (thinking) return 8000
+  if (thinking) return 16000
   return isFinal ? 4000 : 3000
 }
 
@@ -368,8 +373,7 @@ async function* runJudge(
     result = { winner, scores, reason }
   }
 
-  const tie = result.scores !== undefined && isTie(result.scores)
-  const summary = `采用「${LANE_LABELS[result.winner]}」一路${tie ? '（总分并列，按评审排名）' : ''}：${result.reason}`
+  const summary = `采用「${LANE_LABELS[result.winner]}」一路${tieNote(result)}：${result.reason}`
   yield { type: 'text', delta: summary }
   if (signal.aborted) {
     return
@@ -379,6 +383,18 @@ async function* runJudge(
     return
   }
   yield { type: 'done', output: summary, usage }
+}
+
+/** 总分并列时说明是怎么定下来的：排名分出了先后，还是连排名也分不开、只能按取向顺序。 */
+function tieNote(result: JudgeResult): string {
+  const scores = result.scores
+  if (scores === undefined || !isTie(scores)) {
+    return ''
+  }
+  const best = Math.max(...scores.map((item) => totalScore(item.scores)))
+  const leaders = scores.filter((item) => totalScore(item.scores) === best)
+  const ranks = new Set(leaders.map((item) => item.rank))
+  return ranks.size > 1 ? '（总分并列，按评审排名）' : '（总分并列，评审也无法区分，按取向顺序）'
 }
 
 function stripDisclaimer(req: AgentStepRequest, text: string): string {

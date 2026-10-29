@@ -125,7 +125,7 @@ describe('第一层审阅：多路择优', () => {
           [8, 9, 9],
           [8, 7, 6],
         ],
-        ranking: [2, 1, 3],
+        ranking: [2, 3, 1],
         reason: '更可落地',
       }),
     ])
@@ -147,9 +147,9 @@ describe('第一层审阅：多路择优', () => {
       result: {
         winner: 'depth',
         scores: [
-          { lane: 'rigor', scores: [7.5, 7, 6.5], rank: 2.5 },
+          { lane: 'rigor', scores: [7.5, 7, 6.5], rank: 2 },
           { lane: 'depth', scores: [8, 8.5, 9], rank: 1 },
-          { lane: 'practical', scores: [6.5, 6.5, 6], rank: 2.5 },
+          { lane: 'practical', scores: [6.5, 6.5, 6], rank: 3 },
         ],
         reason: '洞察更深',
       },
@@ -246,6 +246,42 @@ describe('第一层审阅：多路择优', () => {
     })
   })
 
+  it('排名和分数不一致时回喂错误重试', async () => {
+    const scores = [
+      [6, 6, 6],
+      [8, 8, 8],
+      [7, 7, 7],
+    ]
+    const valid = json({ scores, ranking: [2, 3, 1], reason: '更深入' })
+    // 照抄呈现顺序：总分 18 的方案 1 排在总分 24 的方案 2 前面。
+    const { client, requests } = fakeLlm([
+      json({ scores, ranking: [1, 2, 3], reason: '照抄顺序' }),
+      valid,
+      valid,
+    ])
+    const events = await collect(client, judgeRequest())
+
+    expect(requests).toHaveLength(3)
+    expect(requests[2]?.messages.at(-1)?.content).toContain('总分高的方案必须排在前面')
+    expect(events.find((event) => event.type === 'judge')).toMatchObject({
+      result: { winner: 'depth' },
+    })
+  })
+
+  it('提示词示例里的排名与示例分数一致，不是编号顺序', async () => {
+    const { client, requests } = fakeLlm(['x', 'x', 'x', 'x'])
+    await collect(client, judgeRequest(['rigor', 'depth', 'practical', 'breadth', 'novel']))
+    const example = JSON.parse(
+      /格式：({.*})$/m.exec(requests[0]?.instructions ?? '')?.[1] ?? '{}',
+    ) as { scores: number[][]; ranking: number[] }
+    const totals = example.ranking.map((no) =>
+      (example.scores[no - 1] ?? []).reduce((sum, score) => sum + score, 0),
+    )
+
+    expect(example.ranking).not.toEqual([1, 2, 3, 4, 5])
+    expect(totals).toEqual([...totals].sort((a, b) => b - a))
+  })
+
   it('总分和平均名次都相同时取排在前面的取向', async () => {
     const even = [
       [8, 8, 8],
@@ -261,6 +297,9 @@ describe('第一层审阅：多路择优', () => {
 
     expect(events.find((event) => event.type === 'judge')).toMatchObject({
       result: { winner: 'rigor' },
+    })
+    expect(events.at(-1)).toMatchObject({
+      output: expect.stringContaining('评审也无法区分，按取向顺序'),
     })
   })
 

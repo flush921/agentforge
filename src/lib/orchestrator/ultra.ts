@@ -146,7 +146,8 @@ export function laneOutcome(state: RunState, node: PlanNode): 'picked' | 'unpick
     (candidate) => candidate.node.role === 'judge' && candidate.node.dependsOn.includes(node.id),
   )
   const winner = judge?.judge?.winner
-  if (winner === undefined) {
+  // 失败或跳过的一路没有参加择优，保留它自己的失败样式，不能和落选的几路一样变暗。
+  if (winner === undefined || state.nodes[node.id]?.status !== 'completed') {
     return undefined
   }
   return winner === node.ultra.lane ? 'picked' : 'unpicked'
