@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { Loader2, Sparkles, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { handleEnterKey } from '@/lib/client/enter-key'
 
 const examples = [
   '考研择校顾问，帮我对比院校和制定备考计划',
@@ -55,16 +56,7 @@ export function GenerateForm({
           id="assistant-prompt"
           value={prompt}
           onChange={(event) => onPromptChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (
-              (event.ctrlKey || event.metaKey) &&
-              event.key === 'Enter' &&
-              !event.nativeEvent.isComposing
-            ) {
-              event.preventDefault()
-              submit()
-            }
-          }}
+          onKeyDown={(event) => handleEnterKey(event, submit, onPromptChange)}
           placeholder="例如：帮我做一个考研择校顾问"
           maxLength={300}
           rows={3}
@@ -93,7 +85,8 @@ export function GenerateForm({
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <span className="text-[11px] text-ink-muted">
-            <kbd className="font-sans">Ctrl / ⌘</kbd> + <kbd className="font-sans">Enter</kbd>
+            <kbd className="font-sans">Enter</kbd> 生成 · <kbd className="font-sans">Ctrl / ⌘</kbd>{' '}
+            + <kbd className="font-sans">Enter</kbd> 换行
             <span className="ml-1.5">快速生成</span>
           </span>
           <Button

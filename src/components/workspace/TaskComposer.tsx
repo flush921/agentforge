@@ -4,6 +4,7 @@ import { SendHorizontal, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { handleEnterKey } from '@/lib/client/enter-key'
 import { IntensityDial } from './IntensityDial'
 
 export function TaskComposer({
@@ -49,16 +50,7 @@ export function TaskComposer({
         id="workspace-task"
         value={task}
         onChange={(event) => onTaskChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (
-            (event.ctrlKey || event.metaKey) &&
-            event.key === 'Enter' &&
-            !event.nativeEvent.isComposing
-          ) {
-            event.preventDefault()
-            send()
-          }
-        }}
+        onKeyDown={(event) => handleEnterKey(event, send, onTaskChange)}
         maxLength={4000}
         rows={3}
         disabled={running}
@@ -88,7 +80,7 @@ export function TaskComposer({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[10px] text-ink-muted">Ctrl / ⌘ + Enter</span>
+        <span className="text-[10px] text-ink-muted">Enter 发送 · Ctrl / ⌘ + Enter 换行</span>
         {running ? (
           <Button type="button" variant="destructive" size="sm" onClick={onStop}>
             <Square aria-hidden />
