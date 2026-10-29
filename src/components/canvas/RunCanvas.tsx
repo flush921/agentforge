@@ -69,6 +69,8 @@ const OVERVIEW_PADDING = 0.08
 const READABLE_ZOOM = 0.55
 /** 为了框住整个最终 Ultra 环节，收尾视角最多缩到这里。 */
 const TAIL_MIN_ZOOM = 0.42
+/** 左下角缩放按钮占用的宽度（含边距）。 */
+const CONTROLS_GUTTER = 72
 /** Ultra 起步时二十来路同时在跑，跟随镜头允许缩到这里，把整片并行框进来。 */
 const ULTRA_FOLLOW_MIN_ZOOM = 0.3
 
@@ -183,7 +185,8 @@ function CanvasFlow({
           : direction === 'LR'
             ? bounds.x + bounds.width - tailGroup.position.x
             : bounds.y + bounds.height - tailGroup.position.y
-      const room = (direction === 'LR' ? width : height) - margin * 2
+      // 左下角是缩放按钮，横向布局时收尾部分要让出这块宽度，不能被按钮挡住。
+      const room = direction === 'LR' ? width - margin - CONTROLS_GUTTER : height - margin * 2
       const zoom =
         span === undefined
           ? READABLE_ZOOM
@@ -224,7 +227,9 @@ function CanvasFlow({
     void fitView({
       nodes: focusNodes,
       // Ultra 镜头贴得近，左边多留出缩放按钮的宽度，卡片不会被按钮挡住。
-      padding: state.ultra ? { top: '28px', right: '28px', bottom: '28px', left: '72px' } : 0.3,
+      padding: state.ultra
+        ? { top: '28px', right: '28px', bottom: '28px', left: `${CONTROLS_GUTTER}px` }
+        : 0.3,
       maxZoom: 1,
       minZoom: state.ultra ? ULTRA_FOLLOW_MIN_ZOOM : 0.55,
       includeHiddenNodes: true,
