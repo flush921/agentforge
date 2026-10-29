@@ -214,10 +214,27 @@ async function* streamWorker(
   if (currentStepText.length > 0) {
     lastNonEmptyStep = currentStepText
   }
-  if (lastNonEmptyStep === undefined) {
+  const output = lastNonEmptyStep === undefined ? '' : stripToolMarkup(lastNonEmptyStep)
+  if (output.length === 0) {
     throw new Error('no_output')
   }
-  return lastNonEmptyStep
+  return output
+}
+
+/**
+ * 兜底：去掉模型误写进正文的工具调用内部标记（DeepSeek 的 DSML 标签）。
+ * 最后一步已经不带工具定义，正常不会出现；只剩标记时按无输出处理，交给编排器重试。
+ */
+export function stripToolMarkup(text: string): string {
+  if (!text.includes('DSML')) {
+    return text
+  }
+  return text
+    .split('\n')
+    .filter((line) => !line.includes('DSML'))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 /** 调用一次 JSON 模型并按 schema 解析，不合法时回喂错误重试一次；两次都失败返回 undefined。 */

@@ -30,6 +30,10 @@ const RELAY_RETRY_DELAYS = [600, 1500] as const
  */
 export const MAX_AGENT_STEPS = 6
 
+/** 最后一步追加的要求：工具已经不可用，直接用已有的计算结果写出完整产出。 */
+export const FINAL_STEP_NOTICE =
+  '工具调用次数已用完，不能再调用任何工具。请直接基于上面已经得到的计算结果，用文字写出本环节完整的最终产出；没算到的数据明确标注「未核算」，不要编造。'
+
 function abortError(): DOMException {
   return new DOMException('aborted', 'AbortError')
 }
@@ -126,9 +130,15 @@ export function createLiveClient(env: Env, model?: LanguageModel): LlmClient {
         messages: req.messages,
         tools: buildToolSet(req.tools),
         stopWhen: isStepCount(MAX_AGENT_STEPS),
-        prepareStep: ({ stepNumber }) =>
+        prepareStep: ({ stepNumber, messages }) =>
           req.tools.length > 0 && stepNumber >= MAX_AGENT_STEPS - 1
-            ? { toolChoice: 'none' as const }
+            ? {
+                // 只设 toolChoice: 'none' 时工具定义仍会发给模型，DeepSeek 偶尔会把工具调用
+                // 的内部标记当正文写出来（实测 9 路里 3 路）。最后一步干脆不带工具，并明确要求写正文。
+                activeTools: [],
+                toolChoice: 'none' as const,
+                messages: [...messages, { role: 'user' as const, content: FINAL_STEP_NOTICE }],
+              }
             : undefined,
         abortSignal: req.signal,
         timeout: { totalMs: 120_000, stepMs: 60_000 },

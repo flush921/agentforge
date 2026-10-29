@@ -5,7 +5,7 @@ import type { Usage } from '@/lib/contracts/common'
 import type { AgentStreamPart, LlmClient } from '@/server/llm/types'
 import { fakeLlm } from '@/test/fake-llm'
 import { makeReviewRequest, makeStepRequest } from '@/test/step'
-import { runAgentStep, workerOutputBudget } from './step'
+import { runAgentStep, stripToolMarkup, workerOutputBudget } from './step'
 
 async function collect(
   client: LlmClient,
@@ -274,5 +274,29 @@ describe('runAgentStep 审校节点', () => {
     const events = await collect(cancellable, makeReviewRequest(), controller.signal)
 
     expect(events).toEqual([])
+  })
+})
+
+describe('stripToolMarkup', () => {
+  const leak = [
+    '<｜｜DSML｜｜ calls>',
+    '<｜｜DSML｜｜ invoke name="calculator">',
+    '<｜｜DSML｜｜ parameter name="expression" string="true">(21.3-12.4)/12.4*100</｜｜DSML｜｜ parameter>',
+    '</｜｜DSML｜｜ invoke>',
+    '</｜｜DSML｜｜ calls>',
+  ].join('\n')
+
+  it('正常正文原样返回', () => {
+    expect(stripToolMarkup('## 结论\n\n饮品增长 71.77%。')).toBe('## 结论\n\n饮品增长 71.77%。')
+  })
+
+  it('去掉混在正文里的工具标记，保留其余内容', () => {
+    expect(stripToolMarkup(`## 结论\n\n${leak}\n\n饮品增长 71.77%。`)).toBe(
+      '## 结论\n\n饮品增长 71.77%。',
+    )
+  })
+
+  it('只有工具标记时返回空串', () => {
+    expect(stripToolMarkup(`\n\n${leak}\n`)).toBe('')
   })
 })

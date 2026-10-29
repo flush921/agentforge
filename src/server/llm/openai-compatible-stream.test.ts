@@ -3,7 +3,7 @@ import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { parseEnv } from '@/server/env-schema'
-import { createLiveClient, MAX_AGENT_STEPS } from './openai-compatible'
+import { createLiveClient, FINAL_STEP_NOTICE, MAX_AGENT_STEPS } from './openai-compatible'
 import type { AgentLlmRequest, AgentStreamPart } from './types'
 
 const env = parseEnv({
@@ -163,7 +163,12 @@ describe('llm.streamAgent', () => {
     for (const call of model.doStreamCalls.slice(0, -1)) {
       expect(call.toolChoice).not.toEqual({ type: 'none' })
     }
-    expect(model.doStreamCalls.at(-1)?.toolChoice).toEqual({ type: 'none' })
+    const last = model.doStreamCalls.at(-1)
+    expect(last?.toolChoice).toEqual({ type: 'none' })
+    // 最后一步不再带工具定义，并追加一条要求直接写正文的消息。
+    expect(last?.tools ?? []).toEqual([])
+    expect(model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual(['datetime'])
+    expect(JSON.stringify(last?.prompt.at(-1))).toContain(FINAL_STEP_NOTICE)
     expect(parts.filter((part) => part.type === 'text')).toEqual([{ type: 'text', delta: '结论' }])
   })
 
