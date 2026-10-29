@@ -25,6 +25,19 @@ describe('Markdown', () => {
     expect(html).toContain('<td>完成率</td>')
   })
 
+  it.each([
+    ['注意：**“适量”**才是关键。', '<strong>“适量”</strong>'],
+    ['建议**「少油少盐」**为主。', '<strong>「少油少盐」</strong>'],
+    ['**结论：**多吃蔬菜。', '<strong>结论：</strong>'],
+    ['这是**重点（必读）**内容。', '<strong>重点（必读）</strong>'],
+    ['每天**30克**坚果即可。', '<strong>30克</strong>'],
+  ])('中文标点旁的粗体也能识别：%s', (source, expected) => {
+    const html = renderToStaticMarkup(<Markdown>{source}</Markdown>)
+
+    expect(html).toContain(expected)
+    expect(html).not.toContain('**')
+  })
+
   it('外链在新窗口打开并带安全 rel', () => {
     const html = renderToStaticMarkup(<Markdown>{'[示例](https://example.com)'}</Markdown>)
 

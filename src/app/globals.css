@@ -778,6 +778,22 @@ button.stellar-intro-fade {
   }
 }
 
+/* 流式回答的光标：接在最后一个文字块的末尾，而不是另起一行。 */
+.stream-caret .markdown > :last-child::after,
+.stream-caret .markdown > :is(ul, ol):last-child > li:last-child::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  background: var(--brand);
+}
+
+.stream-caret .markdown > :is(ul, ol):last-child::after {
+  content: none;
+}
+
 @keyframes canvas-blink {
   50% {
     opacity: 0;
@@ -806,6 +822,11 @@ button.stellar-intro-fade {
   }
 
   .canvas-stream-cursor {
+    animation: canvas-blink 0.9s steps(2, start) infinite;
+  }
+
+  .stream-caret .markdown > :last-child::after,
+  .stream-caret .markdown > :is(ul, ol):last-child > li:last-child::after {
     animation: canvas-blink 0.9s steps(2, start) infinite;
   }
 }

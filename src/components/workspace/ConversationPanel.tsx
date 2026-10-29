@@ -199,11 +199,9 @@ function SessionView({
                 const outputNode =
                   state.outputNodeId === undefined ? undefined : state.nodes[state.outputNodeId]
                 return outputNode?.status === 'running' && outputNode.text.length > 0 ? (
-                  <div data-final-stream="true" className="mt-3">
-                    <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-text-primary">
-                      {outputNode.text}
-                      <span className="canvas-stream-cursor ml-0.5 inline-block h-4 w-0.5 bg-brand" />
-                    </pre>
+                  // 流式过程中也按 Markdown 渲染，和完成后的样子一致，不会先看到一堆星号。
+                  <div data-final-stream="true" className="stream-caret mt-3">
+                    <Markdown>{outputNode.text}</Markdown>
                   </div>
                 ) : null
               })()
