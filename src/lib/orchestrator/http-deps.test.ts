@@ -162,3 +162,126 @@ describe('createHttpDeps step', () => {
     )
   })
 })
+
+describe('createHttpDeps Ultra 批量传输', () => {
+  function ultraStep(id: string) {
+    const base = makeStepRequest()
+    return makeStepRequest({
+      node: {
+        ...base.node,
+        id,
+        ultra: { group: 'write', stage: 'lane', lane: 'rigor' },
+      },
+    })
+  }
+
+  function line(i: number, event: StepEvent): string {
+    return `${JSON.stringify({ i, event })}\n`
+  }
+
+  it('同一轮启动的多路节点合并成一个批量请求，事件按下标分回各自的节点', async () => {
+    const calls: Array<{ url: string; body: { steps: Array<{ node: { id: string } }> } }> = []
+    const deps = createHttpDeps({
+      fetchImpl: async (input, init) => {
+        calls.push({ url: String(input), body: JSON.parse(String(init?.body)) })
+        return new Response(
+          line(1, { type: 'text', delta: '乙' }) +
+            line(0, { type: 'text', delta: '甲' }) +
+            line(1, { type: 'done', output: '乙', usage: { inputTokens: 1, outputTokens: 1 } }) +
+            line(0, { type: 'done', output: '甲', usage: { inputTokens: 1, outputTokens: 1 } }),
+        )
+      },
+    })
+    const signal = new AbortController().signal
+    const [a, b] = await Promise.all([
+      collect(deps.step(ultraStep('write_u1'), signal)),
+      collect(deps.step(ultraStep('write_u2'), signal)),
+    ])
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.url).toBe('/api/agent/batch')
+    expect(calls[0]?.body.steps.map((item) => item.node.id)).toEqual(['write_u1', 'write_u2'])
+    expect(a).toEqual([
+      { type: 'text', delta: '甲' },
+      { type: 'done', output: '甲', usage: { inputTokens: 1, outputTokens: 1 } },
+    ])
+    expect(b.map((event) => event.type)).toEqual(['text', 'done'])
+  })
+
+  it('普通节点仍走单个步骤接口', async () => {
+    const urls: string[] = []
+    const deps = createHttpDeps({
+      fetchImpl: async (input) => {
+        urls.push(String(input))
+        return new Response(
+          '{"type":"done","output":"好","usage":{"inputTokens":1,"outputTokens":1}}\n',
+        )
+      },
+    })
+    await collect(deps.step(makeStepRequest(), new AbortController().signal))
+
+    expect(urls).toEqual(['/api/agent/step'])
+  })
+
+  it('批量请求失败时每个节点都收到可重试错误', async () => {
+    const deps = createHttpDeps({
+      fetchImpl: async () => {
+        throw new TypeError('network')
+      },
+    })
+    const signal = new AbortController().signal
+    const results = await Promise.all([
+      collect(deps.step(ultraStep('write_u1'), signal)),
+      collect(deps.step(ultraStep('write_u2'), signal)),
+    ])
+
+    for (const events of results) {
+      expect(events).toEqual([
+        {
+          type: 'error',
+          error: { code: 'upstream_error', message: '网络连接失败' },
+          retryable: true,
+        },
+      ])
+    }
+  })
+
+  it('流结束时还没收到结尾的节点直接结束，交给编排器按连接中断重试', async () => {
+    const deps = createHttpDeps({
+      fetchImpl: async () =>
+        new Response(
+          line(0, { type: 'done', output: '甲', usage: { inputTokens: 1, outputTokens: 1 } }),
+        ),
+    })
+    const signal = new AbortController().signal
+    const [, b] = await Promise.all([
+      collect(deps.step(ultraStep('write_u1'), signal)),
+      collect(deps.step(ultraStep('write_u2'), signal)),
+    ])
+
+    expect(b).toEqual([])
+  })
+
+  it('单个节点取消只结束它自己的读取', async () => {
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const deps = createHttpDeps({
+      fetchImpl: async () => {
+        await gate
+        return new Response(
+          line(1, { type: 'done', output: '乙', usage: { inputTokens: 1, outputTokens: 1 } }) +
+            line(0, { type: 'done', output: '甲', usage: { inputTokens: 1, outputTokens: 1 } }),
+        )
+      },
+    })
+    const first = new AbortController()
+    const a = collect(deps.step(ultraStep('write_u1'), first.signal))
+    const b = collect(deps.step(ultraStep('write_u2'), new AbortController().signal))
+    await Promise.resolve()
+    first.abort()
+    release()
+
+    await expect(a).rejects.toMatchObject({ name: 'AbortError' })
+    expect((await b).map((event) => event.type)).toEqual(['done'])
+  })
+})

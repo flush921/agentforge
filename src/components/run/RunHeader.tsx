@@ -13,6 +13,7 @@ import {
   TriangleAlert,
   Workflow,
   XCircle,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 import { formatDuration, formatTokens } from '@/lib/canvas/format'
@@ -20,6 +21,7 @@ import { LEVELS } from '@/lib/orchestrator/level'
 import type { RunState } from '@/lib/run/types'
 import { cn } from '@/lib/utils'
 import type { RunStatus } from '@/lib/contracts/run-record'
+import { UltraReport } from './UltraReport'
 
 const statusInfo: Record<RunStatus, { label: string; icon: LucideIcon; className: string }> = {
   idle: { label: '待开始', icon: Clock, className: 'text-ink-muted' },
@@ -80,7 +82,15 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
           </span>
         ) : (
           <>
-            {level !== undefined ? (
+            {level !== undefined && decision?.ultra === true ? (
+              <span
+                data-ultra-badge
+                className="ultra-switch-on inline-flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-[11px] font-semibold"
+              >
+                <Zap className="size-3 fill-current text-ultra" aria-hidden />
+                <span className="ultra-text">L{level} · Ultra 超编排</span>
+              </span>
+            ) : level !== undefined ? (
               <span className="rounded-md border border-brand/25 bg-brand/10 px-2 py-1 font-mono text-[11px] text-brand">
                 L{level} · {LEVELS[level].label}
               </span>
@@ -129,15 +139,18 @@ export function RunHeader({ state, time }: { state: RunState; time?: number }) {
             <span className="text-ink-muted">
               得分 {decision.rawScore} {decision.adjustment >= 0 ? '+' : ''}
               {decision.adjustment} = {decision.score}
-              {decision.upgraded === true
-                ? ' · 需要工具，按 L1 执行'
-                : decision.downgraded
-                  ? ' · 无需工具，按 L0 执行'
-                  : null}
+              {decision.ultra === true
+                ? ' · 已开启 Ultra 超编排，按 L4 多路执行'
+                : decision.upgraded === true
+                  ? ' · 需要工具，按 L1 执行'
+                  : decision.downgraded
+                    ? ' · 无需工具，按 L0 执行'
+                    : null}
             </span>
           ) : null}
         </div>
       ) : null}
+      <UltraReport state={state} />
       {state.warnings.length > 0 && guard?.kind !== 'crisis' ? (
         <details className="mt-2 border-t border-border/60 pt-2 text-[11px]">
           <summary className="inline-flex cursor-pointer items-center gap-1.5 text-warning">

@@ -8,6 +8,7 @@ import {
 } from './common'
 import { assistantDraftSchema, assistantSpecSchema } from './assistant'
 import { complexityAssessmentSchema, nodeIdSchema, planNodeSchema, planSchema } from './plan'
+import { alignResultSchema, judgeResultSchema, ultraContextSchema } from './ultra'
 
 const taskSchema = z.string().trim().min(1).max(4000)
 
@@ -37,6 +38,8 @@ export const planRequestSchema = z.strictObject({
   task: taskSchema,
   level: z.union([z.literal(2), z.literal(3), z.literal(4)]),
   assessment: complexityAssessmentSchema,
+  /** Ultra 模式：提示规划师多拆可并行的环节。 */
+  ultra: z.boolean().optional(),
 })
 export const planResponseSchema = z.strictObject({
   plan: planSchema.nullable(),
@@ -67,6 +70,7 @@ export const agentStepRequestSchema = z
         previousOutput: z.string().trim().max(6000),
       })
       .optional(),
+    ultra: ultraContextSchema.optional(),
   })
   .superRefine((request, ctx) => {
     if (request.node.role === 'reviewer' && request.upstream.length === 0) {
@@ -75,6 +79,32 @@ export const agentStepRequestSchema = z
         path: ['upstream'],
         message: '审校节点至少需要 1 条上游产出',
       })
+    }
+    if (request.node.role === 'judge') {
+      const lanes = request.ultra?.lanes ?? []
+      const covered =
+        request.upstream.length >= 2 &&
+        request.upstream.every((item) => lanes.some((lane) => lane.nodeId === item.nodeId))
+      if (!covered) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['upstream'],
+          message: '多路择优节点需要至少 2 条上游产出，且每条都要标明取向',
+        })
+      }
+    }
+    if (request.node.role === 'aligner' && request.upstream.length !== 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['upstream'],
+        message: '方向校准节点需要正好 1 条上游产出',
+      })
+    }
+    if (
+      (request.node.role === 'judge' || request.node.role === 'aligner') &&
+      request.ultra === undefined
+    ) {
+      ctx.addIssue({ code: 'custom', path: ['ultra'], message: 'Ultra 节点必须带 ultra 上下文' })
     }
   })
 
@@ -98,9 +128,27 @@ export const stepEventSchema = z.discriminatedUnion('type', [
     verdict: z.enum(['pass', 'revise']),
     issues: z.array(z.string().trim().min(1).max(200)).max(8),
   }),
+  z.strictObject({ type: z.literal('judge'), result: judgeResultSchema }),
+  z.strictObject({ type: z.literal('align'), result: alignResultSchema }),
   z.strictObject({ type: z.literal('done'), output: z.string(), usage: usageSchema }),
   z.strictObject({ type: z.literal('error'), error: apiErrorSchema, retryable: z.boolean() }),
 ])
+
+/** 一次批量请求最多合并的步骤数，与 Ultra 的并发上限一致。 */
+export const MAX_BATCH_STEPS = 24
+
+/** 批量执行：多个步骤共用一条连接，事件按下标 i 区分属于哪个步骤。 */
+export const agentBatchRequestSchema = z.strictObject({
+  steps: z.array(agentStepRequestSchema).min(1).max(MAX_BATCH_STEPS),
+})
+export const agentBatchLineSchema = z.strictObject({
+  i: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(MAX_BATCH_STEPS - 1),
+  event: stepEventSchema,
+})
 
 export const apiErrorBodySchema = z.strictObject({ error: apiErrorSchema })
 
@@ -113,4 +161,6 @@ export type PlanRequest = z.infer<typeof planRequestSchema>
 export type PlanResponse = z.infer<typeof planResponseSchema>
 export type AgentStepRequest = z.infer<typeof agentStepRequestSchema>
 export type StepEvent = z.infer<typeof stepEventSchema>
+export type AgentBatchRequest = z.infer<typeof agentBatchRequestSchema>
+export type AgentBatchLine = z.infer<typeof agentBatchLineSchema>
 export type ApiErrorBody = z.infer<typeof apiErrorBodySchema>

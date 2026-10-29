@@ -36,7 +36,31 @@ export const levelDecisionSchema = z.strictObject({
   level: levelSchema,
   downgraded: z.boolean(),
   upgraded: z.boolean().optional(),
+  /** 用户开启了 Ultra，级别被固定为 L4。 */
+  ultra: z.boolean().optional(),
 })
+
+/** Ultra 多路执行的五种取向，顺序即画布上的排列顺序；只有三路的环节用前三种。 */
+export const laneSchema = z.enum(['rigor', 'depth', 'practical', 'breadth', 'novel'])
+export const ultraStageSchema = z.enum(['lane', 'judge', 'align'])
+
+/** Ultra 模式由编排器展开出的节点才带这个字段；规划师的计划里不得出现。 */
+export const ultraMetaSchema = z
+  .strictObject({
+    /** 所属环节：计划里被展开的原节点 id。校准节点沿用这个 id，下游依赖因此不用改。 */
+    group: nodeIdSchema,
+    stage: ultraStageSchema,
+    lane: laneSchema.optional(),
+  })
+  .superRefine((meta, ctx) => {
+    if ((meta.stage === 'lane') !== (meta.lane !== undefined)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['lane'],
+        message: '只有多路执行节点带 lane，且必须带',
+      })
+    }
+  })
 
 export const planNodeSchema = z
   .strictObject({
@@ -53,8 +77,25 @@ export const planNodeSchema = z
       .max(4)
       .refine((items) => new Set(items).size === items.length, 'tools 不得重复'),
     reviewTarget: nodeIdSchema.optional(),
+    ultra: ultraMetaSchema.optional(),
   })
   .superRefine((node, ctx) => {
+    const expected = node.role === 'judge' ? 'judge' : node.role === 'aligner' ? 'align' : undefined
+    if (expected !== undefined && node.ultra?.stage !== expected) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ultra'],
+        message: `${node.role} 节点只能由 Ultra 展开生成`,
+      })
+    }
+    if (expected === undefined && node.ultra !== undefined && node.ultra.stage !== 'lane') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ultra'],
+        message: '评判与校准阶段必须使用对应角色',
+      })
+    }
+
     if (node.role === 'reviewer' && node.reviewTarget === undefined) {
       ctx.addIssue({
         code: 'custom',
@@ -82,5 +123,8 @@ export const planSchema = z.strictObject({
 export type DimScore = z.infer<typeof dimScoreSchema>
 export type ComplexityAssessment = z.infer<typeof complexityAssessmentSchema>
 export type LevelDecision = z.infer<typeof levelDecisionSchema>
+export type Lane = z.infer<typeof laneSchema>
+export type UltraStage = z.infer<typeof ultraStageSchema>
+export type UltraMeta = z.infer<typeof ultraMetaSchema>
 export type PlanNode = z.infer<typeof planNodeSchema>
 export type Plan = z.infer<typeof planSchema>

@@ -1,14 +1,26 @@
 import 'server-only'
 
+import type { z } from 'zod'
 import type { AgentStepRequest, StepEvent } from '@/lib/contracts/api'
-import type { Usage } from '@/lib/contracts/common'
+import type { ToolName, Usage } from '@/lib/contracts/common'
 import { parseLlmOutput } from '@/lib/contracts/llm-output'
+import type { Lane } from '@/lib/contracts/plan'
 import { reviewOutputSchema, type ReviewOutput } from '@/lib/contracts/review'
+import {
+  ALIGN_PASS_SCORE,
+  alignOutputSchema,
+  JUDGE_DIMENSIONS,
+  judgeOutputSchema,
+  type AlignResult,
+  type JudgeResult,
+} from '@/lib/contracts/ultra'
 import { usableTools } from '@/lib/orchestrator/tools'
+import { isTie, LANE_LABELS, totalScore } from '@/lib/orchestrator/ultra'
 import { toApiError } from '@/server/llm/errors'
 import type { LlmClient, LlmJsonRequest } from '@/server/llm/types'
 import { retryMessage } from '@/server/prompts/shared'
 import { buildReviewPrompt, buildWorkerPrompt } from '@/server/prompts/step'
+import { buildAlignFixPrompt, buildAlignPrompt, buildJudgePrompt } from '@/server/prompts/ultra'
 
 const ROUTE = '/api/agent/step'
 const zeroUsage = (): Usage => ({ inputTokens: 0, outputTokens: 0 })
@@ -86,84 +98,30 @@ export async function* runAgentStep(
       yield* runReview(llm, req, signal)
       return
     }
+    if (req.node.role === 'judge') {
+      yield* runJudge(llm, req, signal)
+      return
+    }
+    if (req.node.role === 'aligner') {
+      yield* runAlign(llm, req, signal)
+      return
+    }
 
     const allowedTools = usableTools(req.assistant.capabilities)
     const tools = req.node.tools.filter((tool) => allowedTools.includes(tool))
     const thinking = !(req.isFinal && req.upstream.length === 0 && tools.length === 0)
-    const built = buildWorkerPrompt(req, tools)
     const usage = zeroUsage()
-    let currentStepText = ''
-    let lastNonEmptyStep: string | undefined
-    let startedSteps = 0
-
-    for await (const part of llm.streamAgent({
-      instructions: built.instructions,
-      messages: [{ role: 'user', content: built.user }],
-      tools,
-      thinking,
-      maxOutputTokens: workerOutputBudget(thinking, req.isFinal),
+    const output = yield* streamWorker(
+      llm,
+      buildWorkerPrompt(req, tools),
+      { tools, thinking, maxOutputTokens: workerOutputBudget(thinking, req.isFinal) },
+      usage,
       signal,
-    })) {
-      if (signal.aborted) {
-        return
-      }
-
-      switch (part.type) {
-        case 'step-start':
-          if (startedSteps > 0 && currentStepText.length > 0) {
-            lastNonEmptyStep = currentStepText
-          }
-          startedSteps += 1
-          currentStepText = ''
-          break
-        case 'reasoning':
-          yield { type: 'reasoning', delta: part.delta }
-          break
-        case 'text':
-          currentStepText += part.delta
-          yield { type: 'text', delta: part.delta }
-          break
-        case 'tool_call':
-          yield {
-            type: 'tool_call',
-            callId: part.callId,
-            tool: part.tool,
-            input: part.input,
-          }
-          break
-        case 'tool_result':
-          yield {
-            type: 'tool_result',
-            callId: part.callId,
-            ok: part.ok,
-            summary: part.summary,
-          }
-          break
-        case 'finish':
-          usage.inputTokens = part.usage.inputTokens
-          usage.outputTokens = part.usage.outputTokens
-          break
-      }
-    }
-
-    if (signal.aborted) {
+    )
+    if (output === undefined) {
       return
     }
-    if (currentStepText.length > 0) {
-      lastNonEmptyStep = currentStepText
-    }
-    if (lastNonEmptyStep === undefined) {
-      throw new Error('no_output')
-    }
-
-    let output = lastNonEmptyStep
-    const disclaimer = req.isFinal ? req.assistant.guardrails.disclaimer : undefined
-    if (disclaimer !== undefined) {
-      const delta = `\n\n> ⚠️ ${disclaimer}`
-      output += delta
-      yield { type: 'text', delta }
-    }
-    yield { type: 'done', output, usage }
+    yield* finishWorker(req, output, usage)
   } catch (error) {
     if (signal.aborted) {
       return
@@ -171,4 +129,290 @@ export async function* runAgentStep(
     const mapped = toApiError(error, signal, ROUTE)
     yield { type: 'error', error: mapped.error, retryable: mapped.retryable }
   }
+}
+
+/** 最终节点的产出末尾追加免责声明，并计入 output。 */
+function* finishWorker(req: AgentStepRequest, text: string, usage: Usage): Generator<StepEvent> {
+  let output = text
+  const disclaimer = req.isFinal ? req.assistant.guardrails.disclaimer : undefined
+  if (disclaimer !== undefined) {
+    const delta = `\n\n> ⚠️ ${disclaimer}`
+    output += delta
+    yield { type: 'text', delta }
+  }
+  yield { type: 'done', output, usage }
+}
+
+/**
+ * 流式执行一个工作 Agent，转发推理、正文和工具事件，返回最后一个非空 step 的正文。
+ * 中途取消时返回 undefined；没有任何正文时抛出 no_output。
+ */
+async function* streamWorker(
+  llm: LlmClient,
+  built: { instructions: string; user: string },
+  options: { tools: ToolName[]; thinking: boolean; maxOutputTokens: number },
+  usage: Usage,
+  signal: AbortSignal,
+): AsyncGenerator<StepEvent, string | undefined> {
+  let currentStepText = ''
+  let lastNonEmptyStep: string | undefined
+  let startedSteps = 0
+
+  for await (const part of llm.streamAgent({
+    instructions: built.instructions,
+    messages: [{ role: 'user', content: built.user }],
+    tools: options.tools,
+    thinking: options.thinking,
+    maxOutputTokens: options.maxOutputTokens,
+    signal,
+  })) {
+    if (signal.aborted) {
+      return undefined
+    }
+
+    switch (part.type) {
+      case 'step-start':
+        if (startedSteps > 0 && currentStepText.length > 0) {
+          lastNonEmptyStep = currentStepText
+        }
+        startedSteps += 1
+        currentStepText = ''
+        break
+      case 'reasoning':
+        yield { type: 'reasoning', delta: part.delta }
+        break
+      case 'text':
+        currentStepText += part.delta
+        yield { type: 'text', delta: part.delta }
+        break
+      case 'tool_call':
+        yield {
+          type: 'tool_call',
+          callId: part.callId,
+          tool: part.tool,
+          input: part.input,
+        }
+        break
+      case 'tool_result':
+        yield {
+          type: 'tool_result',
+          callId: part.callId,
+          ok: part.ok,
+          summary: part.summary,
+        }
+        break
+      case 'finish':
+        usage.inputTokens += part.usage.inputTokens
+        usage.outputTokens += part.usage.outputTokens
+        break
+    }
+  }
+
+  if (signal.aborted) {
+    return undefined
+  }
+  if (currentStepText.length > 0) {
+    lastNonEmptyStep = currentStepText
+  }
+  if (lastNonEmptyStep === undefined) {
+    throw new Error('no_output')
+  }
+  return lastNonEmptyStep
+}
+
+/** 调用一次 JSON 模型并按 schema 解析，不合法时回喂错误重试一次；两次都失败返回 undefined。 */
+async function generateParsed<T>(
+  llm: LlmClient,
+  kind: LlmJsonRequest['kind'],
+  built: { instructions: string; user: string },
+  schema: z.ZodType<T>,
+  usage: Usage,
+  signal: AbortSignal,
+): Promise<T | undefined> {
+  let messages: LlmJsonRequest['messages'] = [{ role: 'user', content: built.user }]
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await llm.generateJson({
+      kind,
+      instructions: built.instructions,
+      messages,
+      temperature: 0,
+      maxOutputTokens: 600,
+      signal,
+    })
+    if (signal.aborted) {
+      return undefined
+    }
+    usage.inputTokens += result.usage.inputTokens
+    usage.outputTokens += result.usage.outputTokens
+
+    const parsed = parseLlmOutput(schema, result.text)
+    if (parsed.ok) {
+      return parsed.data
+    }
+    messages = [
+      ...messages,
+      { role: 'assistant', content: result.text },
+      { role: 'user', content: retryMessage([parsed.error]) },
+    ]
+  }
+  return undefined
+}
+
+/**
+ * 第一层审阅：多路择优。各路成果匿名编号后，同时发起两次评审：一次按取向顺序，一次倒序，
+ * 每一路的两次分数取平均，抵消模型偏向排在前面的方案。
+ * 采用哪一路由代码按平均总分决定；最高分并列时看两次评审的偏好，仍并列则取排在前面的取向。
+ */
+async function* runJudge(
+  llm: LlmClient,
+  req: AgentStepRequest,
+  signal: AbortSignal,
+): AsyncGenerator<StepEvent> {
+  const lanes = (req.ultra?.lanes ?? []).flatMap((item) => {
+    const output = req.upstream.find((upstream) => upstream.nodeId === item.nodeId)?.output
+    return output === undefined ? [] : [{ lane: item.lane, output }]
+  })
+  const usage = zeroUsage()
+  const schema = judgeOutputSchema(lanes.length)
+  const orders = [lanes, [...lanes].reverse()]
+  const settled = await Promise.allSettled(
+    orders.map((order) =>
+      generateParsed(
+        llm,
+        'judge',
+        buildJudgePrompt(
+          req,
+          order.map((item) => item.output),
+        ),
+        schema,
+        usage,
+        signal,
+      ),
+    ),
+  )
+  if (signal.aborted) {
+    return
+  }
+  // 一次调用出错时用另一次的结果；两次都出错才算本节点失败，交给编排器重试。
+  if (settled.every((item) => item.status === 'rejected')) {
+    throw (settled[0] as PromiseRejectedResult).reason
+  }
+
+  const votes = settled.flatMap((item, index) => {
+    const output = item.status === 'fulfilled' ? item.value : undefined
+    const order = orders[index]
+    if (output === undefined || order === undefined) {
+      return []
+    }
+    return [
+      {
+        scores: new Map(
+          order.map((entry, position) => [entry.lane, output.scores[position] ?? []]),
+        ),
+        prefer: order[output.prefer - 1]?.lane,
+        reason: output.reason,
+      },
+    ]
+  })
+
+  let result: JudgeResult
+  const firstLane = lanes[0]?.lane ?? 'rigor'
+  if (votes.length === 0) {
+    result = {
+      winner: firstLane,
+      reason: `评审输出无法解析，默认采用「${LANE_LABELS[firstLane]}」一路`,
+      walkover: true,
+    }
+  } else {
+    const scores = lanes.map(({ lane }) => {
+      const sets = votes.map((vote) => vote.scores.get(lane) ?? [])
+      return {
+        lane,
+        scores: JUDGE_DIMENSIONS.map(
+          (_, dimension) => sets.reduce((sum, set) => sum + (set[dimension] ?? 0), 0) / sets.length,
+        ),
+      }
+    })
+    const best = Math.max(...scores.map((item) => totalScore(item.scores)))
+    const leaders = scores.filter((item) => totalScore(item.scores) === best)
+    const preferred = (lane: Lane) => votes.filter((vote) => vote.prefer === lane).length
+    const winner = leaders.reduce((current, item) =>
+      preferred(item.lane) > preferred(current.lane) ? item : current,
+    ).lane
+    const reason = (votes.find((vote) => vote.prefer === winner) ?? votes[0]!).reason
+    result = { winner, scores, reason }
+  }
+
+  const tie = result.scores !== undefined && isTie(result.scores)
+  const summary = `采用「${LANE_LABELS[result.winner]}」一路${tie ? '（并列最高，按评审偏好）' : ''}：${result.reason}`
+  yield { type: 'text', delta: summary }
+  if (signal.aborted) {
+    return
+  }
+  yield { type: 'judge', result }
+  if (signal.aborted) {
+    return
+  }
+  yield { type: 'done', output: summary, usage }
+}
+
+function stripDisclaimer(req: AgentStepRequest, text: string): string {
+  const disclaimer = req.assistant.guardrails.disclaimer
+  const suffix = `\n\n> ⚠️ ${disclaimer ?? ''}`
+  return disclaimer !== undefined && text.endsWith(suffix) ? text.slice(0, -suffix.length) : text
+}
+
+/**
+ * 第二层审阅：对照整体策略检查择优选中的成果。
+ * 分数达标时沿用这份成果（完整原文由编排器补上）；偏离时由校准员按纠偏意见当场重写。
+ */
+async function* runAlign(
+  llm: LlmClient,
+  req: AgentStepRequest,
+  signal: AbortSignal,
+): AsyncGenerator<StepEvent> {
+  const usage = zeroUsage()
+  const material = req.upstream[0]?.output ?? ''
+  const parsed = await generateParsed(
+    llm,
+    'align',
+    buildAlignPrompt(req),
+    alignOutputSchema,
+    usage,
+    signal,
+  )
+  if (signal.aborted) {
+    return
+  }
+  const result: AlignResult =
+    parsed === undefined
+      ? {
+          score: ALIGN_PASS_SCORE,
+          drift: [],
+          summary: '校准输出无法解析，已沿用择优结果',
+          aligned: true,
+        }
+      : { ...parsed, aligned: parsed.score >= ALIGN_PASS_SCORE || parsed.drift.length === 0 }
+
+  yield { type: 'align', result }
+  if (signal.aborted) {
+    return
+  }
+  if (result.aligned) {
+    yield { type: 'text', delta: result.summary }
+    yield { type: 'done', output: material, usage }
+    return
+  }
+
+  const output = yield* streamWorker(
+    llm,
+    buildAlignFixPrompt(req, stripDisclaimer(req, material), result.drift),
+    { tools: [], thinking: false, maxOutputTokens: workerOutputBudget(false, req.isFinal) },
+    usage,
+    signal,
+  )
+  if (output === undefined) {
+    return
+  }
+  yield* finishWorker(req, output, usage)
 }

@@ -19,25 +19,43 @@ import {
 } from '@xyflow/react'
 import { Crosshair, Scan } from 'lucide-react'
 import { MotionConfig, useReducedMotion } from 'motion/react'
-import { deriveGraph, type GraphEdge, type GraphNode } from '@/lib/canvas/derive-graph'
+import {
+  deriveGraph,
+  visibleNodeIds,
+  type GraphEdge,
+  type GraphNode,
+} from '@/lib/canvas/derive-graph'
 import { roleInfo } from '@/lib/canvas/format'
-import { layoutGraph, NODE_SIZE } from '@/lib/canvas/layout'
+import { groupBoxes, layoutGraph, NODE_SIZE } from '@/lib/canvas/layout'
+import { laneOutcome } from '@/lib/orchestrator/ultra'
 import type { RunState } from '@/lib/run/types'
 import { FlowEdge } from './edges/FlowEdge'
 import { AgentNode } from './nodes/AgentNode'
+import { LaneNode } from './nodes/LaneNode'
 import { ReviewerNode } from './nodes/ReviewerNode'
 import { SystemNode } from './nodes/SystemNode'
+import { UltraGateNode } from './nodes/UltraGateNode'
+import { UltraGroupNode } from './nodes/UltraGroupNode'
 import type { CanvasFlowEdge, CanvasFlowNode } from './types'
 
-const nodeTypes: NodeTypes = { system: SystemNode, agent: AgentNode, reviewer: ReviewerNode }
+const nodeTypes: NodeTypes = {
+  system: SystemNode,
+  agent: AgentNode,
+  reviewer: ReviewerNode,
+  lane: LaneNode,
+  ultraGate: UltraGateNode,
+  ultraGroup: UltraGroupNode,
+}
 const edgeTypes: EdgeTypes = { flow: FlowEdge }
 
 function edgeColor(edge: GraphEdge, source: GraphNode | undefined, state: RunState): string {
+  if (edge.pick === 'picked') return 'var(--ultra)'
+  if (edge.pick === 'unpicked') return 'var(--ink-muted)'
   if (edge.active) return 'var(--brand)'
   if (edge.kind === 'feedback') return 'var(--warning)'
   if (edge.kind === 'fallback') return 'var(--ink-muted)'
   if (!edge.done) return 'var(--edge)'
-  if (source?.ref !== undefined && (source.kind === 'agent' || source.kind === 'reviewer')) {
+  if (source?.ref !== undefined && source.kind !== 'task' && source.kind !== 'output') {
     const nodeState = state.nodes[source.ref]
     if (nodeState !== undefined) return `var(--role-${roleInfo(nodeState.node.role).family})`
   }
@@ -49,17 +67,23 @@ export type CameraMode = 'follow' | 'overview' | 'manual'
 const OVERVIEW_PADDING = 0.08
 /** 低于这个缩放，卡片文字就读不清了。 */
 const READABLE_ZOOM = 0.55
+/** 为了框住整个最终 Ultra 环节，收尾视角最多缩到这里。 */
+const TAIL_MIN_ZOOM = 0.42
+/** Ultra 起步时二十来路同时在跑，跟随镜头允许缩到这里，把整片并行框进来。 */
+const ULTRA_FOLLOW_MIN_ZOOM = 0.3
 
 function CanvasFlow({
   state,
   onOpen,
   instantFit,
   initialCamera,
+  revealAll,
 }: {
   state: RunState
   onOpen: (nodeId: string) => void
   instantFit: boolean
   initialCamera: CameraMode
+  revealAll: boolean
 }) {
   const [cameraMode, setCameraMode] = useState<CameraMode>(initialCamera)
   // 全览分两种：用户点「全览」或确认计划时完整框住全图；运行结束自动切换时，
@@ -74,6 +98,13 @@ function CanvasFlow({
     CanvasFlowEdge
   >()
   const graph = useMemo(() => deriveGraph(state), [state])
+  // 逐步显现：执行前确认时展示整张计划，其余时候只显示已经轮到的部分。
+  const visible = useMemo(
+    () => (revealAll ? undefined : visibleNodeIds(state, graph)),
+    [graph, revealAll, state],
+  )
+  const isHidden = (id: string) => visible !== undefined && !visible.has(id)
+  const visibleKey = visible === undefined ? 'all' : [...visible].sort().join('|')
   const topologyKey = useMemo(
     () =>
       `${graph.nodes.map((node) => `${node.id}:${node.kind}`).join('|')}//${graph.edges
@@ -87,12 +118,17 @@ function CanvasFlow({
     )
     const focus = new Set(running)
     // 镜头框住运行节点及其直接上下游：既看清材料来源，也知道下一步交给谁。
+    // Ultra 一次有十几路在跑，再带上上游会把镜头拉得太远；只框运行节点和它们的下一站。
     for (const edge of graph.edges) {
-      if (running.has(edge.target)) focus.add(edge.source)
+      if (running.has(edge.target) && !state.ultra) focus.add(edge.source)
       if (running.has(edge.source)) focus.add(edge.target)
     }
-    return [...focus].sort().join('|')
-  }, [graph])
+    // 还没显现的节点不能把镜头拉向空白处。
+    return [...focus]
+      .filter((id) => visible === undefined || visible.has(id))
+      .sort()
+      .join('|')
+  }, [graph, state.ultra, visible])
   const terminal = ['completed', 'failed', 'cancelled'].includes(state.status)
   const previousTerminal = useRef<boolean | undefined>(undefined)
   // 镜头第一次对准内容之前，视口还是默认位置；此时先把当前已有的节点完整框进来。
@@ -135,8 +171,23 @@ function CanvasFlow({
         })
         return
       }
-      const zoom = READABLE_ZOOM
       const margin = 24
+      // Ultra 的最终环节框比普通卡片宽得多；收尾视角要把它完整框进来，必要时略低于可读缩放。
+      const tailGroup =
+        state.plan === undefined
+          ? undefined
+          : nodes.find((node) => node.id === `group:${state.plan?.outputNodeId}`)
+      const span =
+        tailGroup === undefined
+          ? undefined
+          : direction === 'LR'
+            ? bounds.x + bounds.width - tailGroup.position.x
+            : bounds.y + bounds.height - tailGroup.position.y
+      const room = (direction === 'LR' ? width : height) - margin * 2
+      const zoom =
+        span === undefined
+          ? READABLE_ZOOM
+          : Math.max(TAIL_MIN_ZOOM, Math.min(READABLE_ZOOM, room / span))
       void setViewport(
         direction === 'LR'
           ? {
@@ -172,9 +223,10 @@ function CanvasFlow({
     if (focusNodes.length === 0) return
     void fitView({
       nodes: focusNodes,
-      padding: 0.3,
+      // Ultra 镜头贴得近，左边多留出缩放按钮的宽度，卡片不会被按钮挡住。
+      padding: state.ultra ? { top: '28px', right: '28px', bottom: '28px', left: '72px' } : 0.3,
       maxZoom: 1,
-      minZoom: 0.55,
+      minZoom: state.ultra ? ULTRA_FOLLOW_MIN_ZOOM : 0.55,
       includeHiddenNodes: true,
       duration,
     })
@@ -191,13 +243,55 @@ function CanvasFlow({
     overviewAll,
     reducedMotion,
     setViewport,
+    state.plan,
+    state.ultra,
     viewportInitialized,
     width,
   ])
 
-  const nodes = useMemo<CanvasFlowNode[]>(
+  // 环节框只框已经显现的成员，随逐步显现一起往前长。
+  const groups = useMemo(
     () =>
-      graph.nodes
+      groupBoxes(
+        visible === undefined ? graph.nodes : graph.nodes.filter((node) => visible.has(node.id)),
+        positions,
+      ),
+    // 环节框只随布局和显现范围变化。
+    [positions, visibleKey], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  const nodes = useMemo<CanvasFlowNode[]>(
+    () => [
+      // 环节框排在最前面，渲染在卡片下层。
+      ...groups.map((box): CanvasFlowNode => {
+        const members = graph.nodes.filter((node) => node.group === box.id)
+        const lanes = members.filter((node) => node.kind === 'lane').length
+        const aligner = members.find((node) => node.kind === 'aligner')
+        const status = members.some((node) => node.status === 'running')
+          ? 'running'
+          : (aligner?.status ?? 'pending')
+        const base = state.plan?.nodes.find((node) => node.id === box.id)
+        return {
+          id: `group:${box.id}`,
+          type: 'ultraGroup',
+          position: { x: box.x, y: box.y },
+          width: box.width,
+          height: box.height,
+          zIndex: -1,
+          selectable: false,
+          draggable: false,
+          hidden: members.every((node) => isHidden(node.id)),
+          data: {
+            group: box.id,
+            title: base?.title ?? box.id,
+            lanes,
+            status,
+            width: box.width,
+            height: box.height,
+          },
+        }
+      }),
+      ...graph.nodes
         .map((graphNode): CanvasFlowNode | null => {
           const position = positions.get(graphNode.id) ?? { x: 0, y: 0 }
           const base = {
@@ -207,14 +301,31 @@ function CanvasFlow({
             height: NODE_SIZE[graphNode.kind].height,
             sourcePosition: direction === 'LR' ? Position.Right : Position.Bottom,
             targetPosition: direction === 'LR' ? Position.Left : Position.Top,
+            hidden: isHidden(graphNode.id),
           }
-          if (graphNode.kind === 'agent' || graphNode.kind === 'reviewer') {
+          if (
+            graphNode.kind === 'agent' ||
+            graphNode.kind === 'lane' ||
+            graphNode.kind === 'reviewer' ||
+            graphNode.kind === 'judge' ||
+            graphNode.kind === 'aligner'
+          ) {
             const nodeState = graphNode.ref === undefined ? undefined : state.nodes[graphNode.ref]
             if (nodeState === undefined) return null
+            const pick = laneOutcome(state, nodeState.node)
             return {
               ...base,
-              type: graphNode.kind,
-              data: { graphNode, nodeState, direction, onOpen },
+              type:
+                graphNode.kind === 'judge' || graphNode.kind === 'aligner'
+                  ? 'ultraGate'
+                  : graphNode.kind,
+              data: {
+                graphNode,
+                nodeState,
+                direction,
+                onOpen,
+                ...(pick !== undefined ? { pick } : {}),
+              },
             }
           }
           return {
@@ -224,7 +335,8 @@ function CanvasFlow({
           }
         })
         .filter((node): node is CanvasFlowNode => node !== null),
-    [direction, graph, onOpen, positions, state],
+    ],
+    [direction, graph, groups, onOpen, positions, state, visible], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const edges = useMemo<CanvasFlowEdge[]>(
@@ -240,7 +352,13 @@ function CanvasFlow({
           source: edge.source,
           target: edge.target,
           type: 'flow',
-          data: { kind: edge.kind, active: edge.active, done: edge.done, color },
+          data: {
+            kind: edge.kind,
+            active: edge.active,
+            done: edge.done,
+            color,
+            ...(edge.pick !== undefined ? { pick: edge.pick } : {}),
+          },
           markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color },
         }
       }),
@@ -322,11 +440,14 @@ export function RunCanvas({
   onOpen,
   instantFit = false,
   initialCamera = 'follow',
+  revealAll = false,
 }: {
   state: RunState
   onOpen: (nodeId: string) => void
   instantFit?: boolean
   initialCamera?: CameraMode
+  /** 关闭逐步显现，一次画出整张计划（执行前确认时使用）。 */
+  revealAll?: boolean
 }) {
   return (
     <MotionConfig reducedMotion="user">
@@ -341,6 +462,7 @@ export function RunCanvas({
             onOpen={onOpen}
             instantFit={instantFit}
             initialCamera={initialCamera}
+            revealAll={revealAll}
           />
         </ReactFlowProvider>
       </div>

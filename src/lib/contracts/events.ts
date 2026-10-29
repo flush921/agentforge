@@ -13,6 +13,7 @@ import {
   planNodeSchema,
   planSchema,
 } from './plan'
+import { alignResultSchema, judgeResultSchema } from './ultra'
 
 const eventEnvelope = {
   seq: z.number().int().nonnegative(),
@@ -30,6 +31,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     assistantId: z.string().trim().min(1),
     task: z.string().trim().min(1).max(4000),
     intensity: z.number().min(0).max(1),
+    ultra: z.boolean().optional(),
   }),
   event({ type: z.literal('assess.started') }),
   event({
@@ -89,6 +91,16 @@ export const runEventSchema = z.discriminatedUnion('type', [
     nodeId: nodeIdSchema,
     verdict: z.enum(['pass', 'revise']),
     issues: z.array(z.string().trim().min(1)),
+  }),
+  event({
+    type: z.literal('node.judge'),
+    nodeId: nodeIdSchema,
+    result: judgeResultSchema,
+  }),
+  event({
+    type: z.literal('node.align'),
+    nodeId: nodeIdSchema,
+    result: alignResultSchema,
   }),
   event({
     type: z.literal('node.completed'),

@@ -10,6 +10,16 @@ import type { OrchestratorDeps } from './http-deps'
 import { nextNodeId } from './ids'
 import { buildStaticPlan, decideLevel, FALLBACK_ASSESSMENT, LEVELS, ruleAssess } from './level'
 import { usableTools } from './tools'
+import {
+  baseNodeOf,
+  isUltraPlan,
+  judgeOf,
+  LANE_LABELS,
+  lanesOf,
+  ULTRA_BUDGET,
+  ULTRA_CONCURRENCY,
+  winnerOf,
+} from './ultra'
 import { validatePlan } from './validate-plan'
 
 export type { OrchestratorDeps } from './http-deps'
@@ -18,6 +28,8 @@ export interface RunInput {
   assistant: AssistantSpec
   task: string
   intensity: number
+  /** Ultra 超编排：固定 L4，并把每个工作环节展开为 3~5 路并行 + 两层审阅。 */
+  ultra?: boolean
 }
 
 type Revision = NonNullable<AgentStepRequest['revision']>
@@ -140,11 +152,24 @@ async function assess(
     }
   }
 
-  const decision = decideLevel(
+  const scored = decideLevel(
     assessment.dims,
     ctx.input.intensity,
     usableTools(ctx.input.assistant.capabilities).length > 0,
   )
+  // 用户手动开启 Ultra 时级别固定为 L4；评估得分照常展示。
+  const decision: LevelDecision =
+    // 寒暄（规则命中）不值得动用 Ultra，照常直答。
+    ctx.input.ultra === true && assessment.guard === undefined && assessment.source !== 'rule'
+      ? {
+          rawScore: scored.rawScore,
+          adjustment: scored.adjustment,
+          score: scored.score,
+          level: 4,
+          downgraded: false,
+          ultra: true,
+        }
+      : scored
   emit(ctx, { type: 'assess.completed', assessment, decision })
   return { assessment, decision }
 }
@@ -167,7 +192,13 @@ async function plan(
     source = 'planner'
     try {
       const response = await ctx.deps.plan(
-        { assistant: ctx.input.assistant, task: ctx.input.task, level, assessment },
+        {
+          assistant: ctx.input.assistant,
+          task: ctx.input.task,
+          level,
+          assessment,
+          ...(decision.ultra === true ? { ultra: true } : {}),
+        },
         ctx.signal,
       )
       throwIfAborted(ctx)
@@ -198,7 +229,8 @@ async function plan(
     source = 'fallback'
     warn(ctx, '编排规划失败，已退回单 Agent 执行')
   }
-  emit(ctx, { type: 'plan.completed', plan, source, budget: LEVELS[plan.level].budget })
+  const budget = isUltraPlan(ctx.state.ultra, plan) ? ULTRA_BUDGET : LEVELS[plan.level].budget
+  emit(ctx, { type: 'plan.completed', plan, source, budget })
 }
 
 function materialIds(state: RunState, node: PlanNode): string[] {
@@ -212,44 +244,80 @@ function materialIds(state: RunState, node: PlanNode): string[] {
       const original = state.nodes[revisionOf]?.node
       return original === undefined ? [] : walk(original, seen)
     }
-    return current.dependsOn
+    // Ultra 校准节点的 dependsOn 是本环节的评审节点；返工要回到规划师原节点的材料。
+    return baseNodeOf(state, current).dependsOn
   }
 
   return walk(node, new Set())
 }
 
-function upstreamFor(ctx: Context, node: PlanNode): AgentStepRequest['upstream'] {
-  const ids =
-    node.role === 'reviewer' && node.reviewTarget !== undefined
-      ? [node.reviewTarget]
-      : materialIds(ctx.state, node)
+function upstreamItem(state: RunState, id: string): AgentStepRequest['upstream'] {
+  const node = state.nodes[id]
+  if (node?.status !== 'completed' || node.output === undefined) {
+    return []
+  }
+  const base = baseNodeOf(state, node.node)
+  return [
+    {
+      nodeId: id,
+      // 校准节点的产出就是本环节的成果，下游看到的应是原环节名与角色。
+      title: node.node.role === 'aligner' ? base.title : node.node.title,
+      role: node.node.role === 'aligner' ? base.role : node.node.role,
+      output: node.output.slice(0, 6000),
+    },
+  ]
+}
 
+function upstreamFor(ctx: Context, node: PlanNode): AgentStepRequest['upstream'] {
+  if (node.role === 'reviewer' && node.reviewTarget !== undefined) {
+    return upstreamItem(ctx.state, node.reviewTarget)
+  }
+  if (node.role === 'judge') {
+    return node.dependsOn.flatMap((id) => upstreamItem(ctx.state, id))
+  }
+  if (node.role === 'aligner') {
+    const winner = winnerOf(ctx.state, node)
+    return winner === undefined ? [] : upstreamItem(ctx.state, winner.node.id)
+  }
   // 返工节点必须递归取原节点的材料，不能误用被审版本的产出。
-  return ids.flatMap((id) => {
-    const state = ctx.state.nodes[id]
-    if (state?.status !== 'completed' || state.output === undefined) {
-      return []
-    }
-    return [
-      {
-        nodeId: id,
-        title: state.node.title,
-        role: state.node.role,
-        output: state.output.slice(0, 6000),
-      },
-    ]
-  })
+  return materialIds(ctx.state, node).flatMap((id) => upstreamItem(ctx.state, id))
+}
+
+function ultraContextFor(ctx: Context, node: PlanNode): AgentStepRequest['ultra'] {
+  const strategy = ctx.state.plan?.strategy
+  if (node.ultra === undefined || strategy === undefined) {
+    return undefined
+  }
+  const judgeNote = node.role === 'aligner' ? judgeOf(ctx.state, node)?.judge?.reason : undefined
+  // 择优评审只拿已完成的几路；失败的一路不参加比较。
+  const lanes =
+    node.role === 'judge'
+      ? lanesOf(ctx.state, node).flatMap((item) =>
+          item.status === 'completed' && item.node.ultra?.lane !== undefined
+            ? [{ nodeId: item.node.id, lane: item.node.ultra.lane }]
+            : [],
+        )
+      : []
+  return {
+    strategy,
+    ...(judgeNote === undefined ? {} : { judgeNote }),
+    ...(lanes.length > 0 ? { lanes } : {}),
+  }
 }
 
 function requestFor(ctx: Context, node: PlanNode): AgentStepRequest {
   const revision = ctx.revisions.get(node.id)
+  const ultra = ultraContextFor(ctx, node)
+  // 最终环节的每一路都按交付稿的要求写，被采用的一份会直接交给用户。
+  const finalId = node.ultra?.stage === 'lane' ? node.ultra.group : node.id
   return {
     assistant: ctx.input.assistant,
     task: ctx.input.task,
     node,
-    isFinal: node.id === ctx.state.outputNodeId,
+    isFinal: finalId === ctx.state.outputNodeId,
     upstream: upstreamFor(ctx, node),
     ...(revision === undefined ? {} : { revision }),
+    ...(ultra === undefined ? {} : { ultra }),
   }
 }
 
@@ -289,8 +357,63 @@ async function attemptError(
     throwIfAborted(ctx)
     return 'retry'
   }
+  if (bypassUltraGate(ctx, nodeId)) {
+    return 'failed'
+  }
   emit(ctx, { type: 'node.failed', nodeId, error })
   return 'failed'
+}
+
+/**
+ * Ultra 的两层审阅失败时不拖垮整个环节：择优失败默认采用排在最前的一路，
+ * 校准失败直接沿用被采用的一路。两种情况都记一条警告。
+ */
+function bypassUltraGate(ctx: Context, nodeId: string): boolean {
+  const node = ctx.state.nodes[nodeId]
+  if (node?.node.role === 'judge') {
+    const pick = lanesOf(ctx.state, node.node).find((item) => item.status === 'completed')?.node
+      .ultra?.lane
+    if (pick === undefined) {
+      return false
+    }
+    const reason = `多路择优未完成，默认采用「${LANE_LABELS[pick]}」一路`
+    warn(ctx, '部分多路择优未完成，已按默认方案继续')
+    emit(ctx, { type: 'node.judge', nodeId, result: { winner: pick, reason, walkover: true } })
+    emit(ctx, {
+      type: 'node.completed',
+      nodeId,
+      output: reason,
+      usage: { inputTokens: 0, outputTokens: 0 },
+    })
+    return true
+  }
+  if (node?.node.role === 'aligner') {
+    const winner = winnerOf(ctx.state, node.node)
+    if (winner?.output === undefined) {
+      return false
+    }
+    warn(ctx, '部分方向校准未完成，已直接采用择优选中的方案')
+    emit(ctx, {
+      type: 'node.completed',
+      nodeId,
+      output: winner.output,
+      usage: { inputTokens: 0, outputTokens: 0 },
+    })
+    return true
+  }
+  return false
+}
+
+/**
+ * 方向校准判定一致时，服务端不重写成果，本环节的产出就是被采用那一路的完整原文
+ * （请求里的上游材料截断过 6000 字，不能拿来当产出）。
+ */
+function completedOutput(ctx: Context, nodeId: string, output: string): string {
+  const node = ctx.state.nodes[nodeId]
+  if (node?.node.role !== 'aligner' || node.align?.aligned !== true) {
+    return output
+  }
+  return winnerOf(ctx.state, node.node)?.output ?? output
 }
 
 async function runAttempt(
@@ -338,8 +461,17 @@ async function runAttempt(
         })
       } else if (event.type === 'review') {
         emit(ctx, { type: 'node.review', nodeId, verdict: event.verdict, issues: event.issues })
+      } else if (event.type === 'judge') {
+        emit(ctx, { type: 'node.judge', nodeId, result: event.result })
+      } else if (event.type === 'align') {
+        emit(ctx, { type: 'node.align', nodeId, result: event.result })
       } else if (event.type === 'done') {
-        emit(ctx, { type: 'node.completed', nodeId, output: event.output, usage: event.usage })
+        emit(ctx, {
+          type: 'node.completed',
+          nodeId,
+          output: completedOutput(ctx, nodeId, event.output),
+          usage: event.usage,
+        })
         return 'done'
       } else if (event.type === 'error') {
         return await attemptError(ctx, nodeId, attempt, event.error, event.retryable)
@@ -386,6 +518,8 @@ function handleReview(ctx: Context, reviewerId: string): void {
   if (targetId === undefined || target?.output === undefined) {
     return
   }
+  // Ultra 下审校的是校准节点；返工交回规划师原节点的角色和指令，而不是再做一次校准。
+  const base = baseNodeOf(ctx.state, target.node)
   const disclaimer = ctx.input.assistant.guardrails.disclaimer
   const suffix = `\n\n> ⚠️ ${disclaimer ?? ''}`
   const previousOutput =
@@ -403,9 +537,9 @@ function handleReview(ctx: Context, reviewerId: string): void {
   const revisionId = nextNodeId(targetId, round, new Set(ctx.state.nodeOrder))
   const reviewId = nextNodeId(reviewerId, round, new Set([...ctx.state.nodeOrder, revisionId]))
   const revisionNode: PlanNode = {
-    ...target.node,
+    ...base,
     id: revisionId,
-    title: `修订·${target.node.title}`.slice(0, 16),
+    title: `修订·${base.title}`.slice(0, 16),
     dependsOn: [targetId],
   }
   const reviewNode: PlanNode = {
@@ -422,7 +556,37 @@ function handleReview(ctx: Context, reviewerId: string): void {
   ctx.revisions.set(reviewId, revision)
 }
 
+/** 多路里只有一路完成时不调用评审模型，直接采用完成的那一路。 */
+function walkover(ctx: Context, judgeId: string): boolean {
+  const judge = ctx.state.nodes[judgeId]
+  if (judge?.node.role !== 'judge') {
+    return false
+  }
+  const finished = lanesOf(ctx.state, judge.node).filter((item) => item.status === 'completed')
+  const survivor = finished[0]?.node.ultra?.lane
+  if (finished.length !== 1 || survivor === undefined) {
+    return false
+  }
+  const reason = `其余各路未能完成，直接采用「${LANE_LABELS[survivor]}」一路`
+  emit(ctx, { type: 'node.started', nodeId: judgeId, attempt: 1 })
+  emit(ctx, {
+    type: 'node.judge',
+    nodeId: judgeId,
+    result: { winner: survivor, reason, walkover: true },
+  })
+  emit(ctx, {
+    type: 'node.completed',
+    nodeId: judgeId,
+    output: reason,
+    usage: { inputTokens: 0, outputTokens: 0 },
+  })
+  return true
+}
+
 async function executeNode(ctx: Context, nodeId: string): Promise<void> {
+  if (walkover(ctx, nodeId)) {
+    return
+  }
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const outcome = await runAttempt(ctx, nodeId, attempt)
     throwIfAborted(ctx)
@@ -454,12 +618,28 @@ function startNode(ctx: Context, nodeId: string): void {
   ctx.running.set(nodeId, tracked)
 }
 
+function dependencyStatuses(ctx: Context, node: PlanNode): Array<NodeState['status'] | undefined> {
+  return node.dependsOn.map((dependency) => ctx.state.nodes[dependency]?.status)
+}
+
+function isDead(status: NodeState['status'] | undefined): boolean {
+  return status === 'failed' || status === 'skipped'
+}
+
 function ready(ctx: Context, id: string): boolean {
   const node = ctx.state.nodes[id]
-  return (
-    node?.status === 'pending' &&
-    node.node.dependsOn.every((dependency) => ctx.state.nodes[dependency]?.status === 'completed')
-  )
+  if (node?.status !== 'pending') {
+    return false
+  }
+  const statuses = dependencyStatuses(ctx, node.node)
+  // 对比评审只要两路都结束且至少一路完成就能开始，另一路失败时由完成的一路晋级。
+  if (node.node.role === 'judge') {
+    return (
+      statuses.every((status) => status === 'completed' || isDead(status)) &&
+      statuses.includes('completed')
+    )
+  }
+  return statuses.every((status) => status === 'completed')
 }
 
 function markUnreachable(ctx: Context): void {
@@ -471,10 +651,8 @@ function markUnreachable(ctx: Context): void {
       if (node?.status !== 'pending') {
         continue
       }
-      const blocked = node.node.dependsOn.some((dependency) => {
-        const status = ctx.state.nodes[dependency]?.status
-        return status === 'failed' || status === 'skipped'
-      })
+      const statuses = dependencyStatuses(ctx, node.node)
+      const blocked = node.node.role === 'judge' ? statuses.every(isDead) : statuses.some(isDead)
       if (blocked) {
         emit(ctx, { type: 'node.skipped', nodeId: id, reason: '上游环节未完成' })
         changed = true
@@ -510,8 +688,10 @@ async function schedule(ctx: Context): Promise<void> {
     markUnreachable(ctx)
     enforceBudget(ctx)
 
+    const plan = ctx.state.plan
+    const limit = plan !== undefined && isUltraPlan(ctx.state.ultra, plan) ? ULTRA_CONCURRENCY : 3
     for (const id of ctx.state.nodeOrder) {
-      if (ctx.running.size >= 3 || budgetExceeded(ctx)) {
+      if (ctx.running.size >= limit || budgetExceeded(ctx)) {
         break
       }
       if (ready(ctx, id)) {
@@ -534,11 +714,13 @@ function lastCompleted(ctx: Context): NodeState | undefined {
   return ctx.state.nodeOrder
     .map((id) => ctx.state.nodes[id])
     .filter((node): node is NodeState => node !== undefined)
-    .filter(
-      (node) =>
-        node.status === 'completed' && node.node.role !== 'reviewer' && node.output !== undefined,
-    )
+    .filter((node) => node.status === 'completed' && isMaterial(node) && node.output !== undefined)
     .at(-1)
+}
+
+/** 审校和对比评审只产出结论，不能当作交付材料。 */
+function isMaterial(node: NodeState): boolean {
+  return node.node.role !== 'reviewer' && node.node.role !== 'judge'
 }
 
 function complete(ctx: Context, output: string, degraded: boolean): void {
@@ -587,7 +769,7 @@ async function finalize(ctx: Context): Promise<void> {
   const dependencies = ctx.state.nodeOrder
     .filter((id) => {
       const node = ctx.state.nodes[id]
-      return node?.status === 'completed' && node.node.role !== 'reviewer'
+      return node?.status === 'completed' && isMaterial(node)
     })
     .slice(-6)
   const existing = new Set(ctx.state.nodeOrder)
@@ -655,6 +837,7 @@ export async function runOrchestration(
       assistantId: input.assistant.id,
       task: input.task,
       intensity: input.intensity,
+      ...(input.ultra === true ? { ultra: true } : {}),
     })
     emit(ctx, { type: 'assess.started' })
     if (isTerminal(ctx)) {

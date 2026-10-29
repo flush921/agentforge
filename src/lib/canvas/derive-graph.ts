@@ -1,6 +1,9 @@
+import type { AgentRole } from '../contracts/common'
+import type { Lane, PlanNode } from '../contracts/plan'
 import type { RunState } from '../run/types'
 
-export type GraphNodeKind = 'task' | 'router' | 'planner' | 'agent' | 'reviewer' | 'output'
+export type GraphNodeKind =
+  'task' | 'router' | 'planner' | 'agent' | 'lane' | 'reviewer' | 'judge' | 'aligner' | 'output'
 export type GraphStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
 
 export interface GraphNode {
@@ -10,6 +13,10 @@ export interface GraphNode {
   /** 指向计划节点 id：计划节点为自身 id，sys:output 为 outputNodeId */
   ref?: string
   guarded?: boolean
+  /** Ultra 模式下所属的环节；同一环节的多路、择优、校准节点在画布上框在一起。 */
+  group?: string
+  /** Ultra 多路节点的取向，布局时按取向顺序排列。 */
+  lane?: Lane
 }
 
 export type GraphEdgeKind = 'flow' | 'feedback' | 'fallback'
@@ -21,6 +28,8 @@ export interface GraphEdge {
   kind: GraphEdgeKind
   active: boolean
   done: boolean
+  /** Ultra 择优结果：被采用那一路到择优节点的边高亮，其余各路变暗。 */
+  pick?: 'picked' | 'unpicked'
 }
 
 export interface Graph {
@@ -75,6 +84,14 @@ function outputStatus(state: RunState): GraphStatus {
   return 'pending'
 }
 
+function kindOf(node: PlanNode): GraphNodeKind {
+  const role: AgentRole = node.role
+  if (role === 'reviewer' || role === 'judge' || role === 'aligner') {
+    return role
+  }
+  return node.ultra?.stage === 'lane' ? 'lane' : 'agent'
+}
+
 export function deriveGraph(state: RunState): Graph {
   if (state.runId === null) {
     return { nodes: [], edges: [] }
@@ -117,11 +134,15 @@ export function deriveGraph(state: RunState): Graph {
     }
 
     const id = `n:${nodeState.node.id}`
+    const group = nodeState.node.ultra?.group
+    const lane = nodeState.node.ultra?.lane
     nodes.push({
       id,
-      kind: nodeState.node.role === 'reviewer' ? 'reviewer' : 'agent',
+      kind: kindOf(nodeState.node),
       status: nodeState.status,
       ref: nodeState.node.id,
+      ...(group !== undefined ? { group } : {}),
+      ...(lane !== undefined ? { lane } : {}),
     })
     statusById.set(id, nodeState.status)
 
@@ -187,7 +208,52 @@ export function deriveGraph(state: RunState): Graph {
   for (const edge of edges) {
     edge.active = statusById.get(edge.target) === 'running'
     edge.done = statusById.get(edge.source) === 'completed'
+    const target = state.nodes[edge.target.slice(2)]
+    const winner = target?.node.role === 'judge' ? target.judge?.winner : undefined
+    const lane = state.nodes[edge.source.slice(2)]?.node.ultra?.lane
+    if (edge.target.startsWith('n:') && winner !== undefined && lane !== undefined) {
+      edge.pick = lane === winner ? 'picked' : 'unpicked'
+    }
   }
 
   return { nodes, edges }
+}
+
+/**
+ * 逐步显现：画布比执行快一步往前长。规划完成后起点环节立即出现；
+ * 其余节点等任一上游开始工作才出现，已经开始或结束的节点始终可见。
+ * 布局仍按整张图计算，节点出现时不会挤动已有节点。
+ */
+export function visibleNodeIds(state: RunState, graph: Graph): Set<string> {
+  const terminal = ['completed', 'failed', 'cancelled'].includes(state.status)
+  const visible = new Set<string>()
+  for (const node of graph.nodes) {
+    if (node.ref === undefined || node.kind === 'task' || node.kind === 'router') {
+      if (node.kind !== 'output') visible.add(node.id)
+      continue
+    }
+    if (node.kind === 'output') continue
+    const nodeState = state.nodes[node.ref]
+    if (nodeState === undefined) continue
+    const deps = nodeState.node.dependsOn
+    if (
+      terminal ||
+      nodeState.status !== 'pending' ||
+      deps.length === 0 ||
+      deps.some((dep) => (state.nodes[dep]?.status ?? 'pending') !== 'pending')
+    ) {
+      visible.add(node.id)
+    }
+  }
+  // 交付节点在它的来源开始工作后出现。
+  const outputEdge = graph.edges.find((edge) => edge.target === 'sys:output')
+  const outputSource =
+    outputEdge === undefined ? undefined : graph.nodes.find((node) => node.id === outputEdge.source)
+  if (
+    graph.nodes.some((node) => node.id === 'sys:output') &&
+    (terminal || outputSource === undefined || outputSource.status !== 'pending')
+  ) {
+    visible.add('sys:output')
+  }
+  return visible
 }

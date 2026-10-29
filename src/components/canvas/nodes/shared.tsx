@@ -79,15 +79,18 @@ export function AgentStatusLine({ nodeState }: { nodeState: NodeState }) {
 export function NodeBadge({
   children,
   warning = false,
+  ultra = false,
 }: {
   children: ReactNode
   warning?: boolean
+  ultra?: boolean
 }) {
   return (
     <span
       className={cn(
         'inline-flex h-4 shrink-0 items-center gap-0.5 rounded border border-border/80 bg-background/55 px-1 text-[9px] leading-none text-text-secondary',
         warning && 'border-warning/35 bg-warning/10 text-warning',
+        ultra && 'border-ultra/40 bg-ultra/10 text-ultra',
       )}
     >
       {children}
@@ -101,6 +104,7 @@ export function sameAgentData(a: AgentNodeData, b: AgentNodeData): boolean {
     a.graphNode.status === b.graphNode.status &&
     a.nodeState === b.nodeState &&
     a.direction === b.direction &&
+    a.pick === b.pick &&
     a.onOpen === b.onOpen
   )
 }

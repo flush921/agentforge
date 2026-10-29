@@ -36,6 +36,9 @@ export const agentRoleSchema = z.enum([
   'reviewer',
   'synthesizer',
   'specialist',
+  // 以下两个只在 Ultra 模式由编排器生成，规划师不可使用。
+  'judge',
+  'aligner',
 ])
 export const usageSchema = z.strictObject({
   inputTokens: z.number().int().nonnegative(),

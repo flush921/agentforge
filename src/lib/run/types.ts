@@ -1,6 +1,7 @@
 import type { ApiError, Level, ToolName, Usage } from '../contracts/common'
 import type { ComplexityAssessment, LevelDecision, Plan, PlanNode } from '../contracts/plan'
 import type { RunStatus } from '../contracts/run-record'
+import type { AlignResult, JudgeResult } from '../contracts/ultra'
 
 export type NodeStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
 
@@ -22,6 +23,8 @@ export type NodeState = {
   reasoning: string
   toolCalls: ToolCallState[]
   review?: { verdict: 'pass' | 'revise'; issues: string[] }
+  judge?: JudgeResult
+  align?: AlignResult
   output?: string
   usage?: Usage
   error?: ApiError
@@ -36,6 +39,8 @@ export type RunState = {
   status: RunStatus
   task: string
   intensity: number
+  /** Ultra 超编排：计划中的每个工作节点展开为 3~5 路并行 + 两层审阅。 */
+  ultra: boolean
   assessment?: ComplexityAssessment
   decision?: LevelDecision
   level?: Level

@@ -7,7 +7,9 @@ import type {
   StepEvent,
 } from '../contracts/api'
 import {
+  agentBatchLineSchema,
   apiErrorBodySchema,
+  MAX_BATCH_STEPS,
   assessResponseSchema,
   planResponseSchema,
   stepEventSchema,
@@ -18,6 +20,7 @@ import { getAccessCode, reportAccessRequired } from '../client/access'
 import { newId } from '../ids/uuid'
 import type { RunState } from '../run/types'
 import { readNdjson } from '../stream/ndjson'
+import { AsyncQueue } from '../stream/queue'
 
 export interface OrchestratorDeps {
   assess(req: AssessRequest, signal: AbortSignal): Promise<AssessResponse>
@@ -95,62 +98,195 @@ export function createHttpDeps(options: HttpDepsOptions = {}): OrchestratorDeps 
     }
   }
 
+  async function* singleStep(
+    req: AgentStepRequest,
+    signal: AbortSignal,
+  ): AsyncGenerator<StepEvent> {
+    let response: Response
+    try {
+      response = await fetchImpl(`${baseUrl}/api/agent/step`, init(req, signal))
+    } catch (error) {
+      if (isAbort(error, signal)) {
+        throw error
+      }
+      yield {
+        type: 'error',
+        error: { code: 'upstream_error', message: '网络连接失败' },
+        retryable: true,
+      }
+      return
+    }
+
+    if (!response.ok) {
+      yield {
+        type: 'error',
+        error: await responseError(response),
+        retryable: response.status === 429 || response.status >= 500,
+      }
+      return
+    }
+    if (response.body === null) {
+      yield { type: 'error', error: internalError(), retryable: false }
+      return
+    }
+
+    try {
+      for await (const value of readNdjson(response.body)) {
+        const parsed = stepEventSchema.safeParse(value)
+        if (!parsed.success) {
+          yield { type: 'error', error: internalError(), retryable: false }
+          return
+        }
+        yield parsed.data
+      }
+    } catch (error) {
+      if (isAbort(error, signal)) {
+        throw error
+      }
+      if (error instanceof Error && error.message === 'NDJSON 解析失败') {
+        yield { type: 'error', error: internalError(), retryable: false }
+        return
+      }
+      yield {
+        type: 'error',
+        error: { code: 'upstream_error', message: '网络连接失败' },
+        retryable: true,
+      }
+    }
+  }
+
+  interface PendingStep {
+    req: AgentStepRequest
+    signal: AbortSignal
+    queue: AsyncQueue<StepEvent>
+  }
+  let pending: PendingStep[] = []
+  let flushScheduled = false
+
+  /**
+   * 同一轮调度里启动的 Ultra 节点会在同一个同步调用栈内到达这里；
+   * 用微任务把它们攒成一批，合并成一个请求发送。
+   */
+  function enqueue(item: PendingStep): void {
+    pending.push(item)
+    if (flushScheduled) return
+    flushScheduled = true
+    queueMicrotask(() => {
+      flushScheduled = false
+      const items = pending
+      pending = []
+      for (let start = 0; start < items.length; start += MAX_BATCH_STEPS) {
+        void sendBatch(items.slice(start, start + MAX_BATCH_STEPS))
+      }
+    })
+  }
+
+  async function sendBatch(items: PendingStep[]): Promise<void> {
+    const open = new Set(items.map((_, index) => index))
+    const finish = (index: number, event?: StepEvent) => {
+      const item = items[index]
+      if (item === undefined || !open.has(index)) return
+      if (event !== undefined) item.queue.push(event)
+      item.queue.close()
+      open.delete(index)
+    }
+    // event 为 undefined 时只关闭队列：编排器读到流结束、没有 done，会按「连接中断」重试。
+    const failOpen = (event?: StepEvent) => {
+      for (const index of [...open]) finish(index, event)
+    }
+
+    // 只有批里每个步骤都已取消时才中断整条连接。
+    const controller = new AbortController()
+    let aborted = 0
+    for (const item of items) {
+      const onAbort = () => {
+        aborted += 1
+        if (aborted === items.length) controller.abort()
+      }
+      if (item.signal.aborted) onAbort()
+      else item.signal.addEventListener('abort', onAbort, { once: true })
+    }
+
+    let response: Response
+    try {
+      response = await fetchImpl(
+        `${baseUrl}/api/agent/batch`,
+        init({ steps: items.map((item) => item.req) }, controller.signal),
+      )
+    } catch {
+      failOpen({
+        type: 'error',
+        error: { code: 'upstream_error', message: '网络连接失败' },
+        retryable: true,
+      })
+      return
+    }
+    if (!response.ok) {
+      const error = await responseError(response)
+      failOpen({
+        type: 'error',
+        error,
+        retryable: response.status === 429 || response.status >= 500,
+      })
+      return
+    }
+    if (response.body === null) {
+      failOpen({ type: 'error', error: internalError(), retryable: false })
+      return
+    }
+
+    try {
+      for await (const value of readNdjson(response.body)) {
+        const parsed = agentBatchLineSchema.safeParse(value)
+        if (!parsed.success) {
+          failOpen({ type: 'error', error: internalError(), retryable: false })
+          return
+        }
+        const { i, event } = parsed.data
+        if (event.type === 'done' || event.type === 'error') finish(i, event)
+        else items[i]?.queue.push(event)
+      }
+      failOpen()
+    } catch (error) {
+      if (error instanceof Error && error.message === 'NDJSON 解析失败') {
+        failOpen({ type: 'error', error: internalError(), retryable: false })
+        return
+      }
+      failOpen({
+        type: 'error',
+        error: { code: 'upstream_error', message: '网络连接失败' },
+        retryable: true,
+      })
+    }
+  }
+
+  async function* batchedStep(
+    req: AgentStepRequest,
+    signal: AbortSignal,
+  ): AsyncGenerator<StepEvent> {
+    if (signal.aborted) throw new DOMException('aborted', 'AbortError')
+    const queue = new AsyncQueue<StepEvent>()
+    const onAbort = () => queue.fail(new DOMException('aborted', 'AbortError'))
+    signal.addEventListener('abort', onAbort, { once: true })
+    enqueue({ req, signal, queue })
+    try {
+      yield* queue
+    } finally {
+      signal.removeEventListener('abort', onAbort)
+    }
+  }
+
   return {
     assess: (req, signal) =>
       requestJson('/api/orchestrate/assess', req, signal, assessResponseSchema),
     plan: (req, signal) => requestJson('/api/orchestrate/plan', req, signal, planResponseSchema),
     async *step(req, signal) {
-      let response: Response
-      try {
-        response = await fetchImpl(`${baseUrl}/api/agent/step`, init(req, signal))
-      } catch (error) {
-        if (isAbort(error, signal)) {
-          throw error
-        }
-        yield {
-          type: 'error',
-          error: { code: 'upstream_error', message: '网络连接失败' },
-          retryable: true,
-        }
+      // Ultra 的多路节点经批量接口合并发送，其余节点仍走单个步骤接口。
+      if (req.node.ultra !== undefined) {
+        yield* batchedStep(req, signal)
         return
       }
-
-      if (!response.ok) {
-        yield {
-          type: 'error',
-          error: await responseError(response),
-          retryable: response.status === 429 || response.status >= 500,
-        }
-        return
-      }
-      if (response.body === null) {
-        yield { type: 'error', error: internalError(), retryable: false }
-        return
-      }
-
-      try {
-        for await (const value of readNdjson(response.body)) {
-          const parsed = stepEventSchema.safeParse(value)
-          if (!parsed.success) {
-            yield { type: 'error', error: internalError(), retryable: false }
-            return
-          }
-          yield parsed.data
-        }
-      } catch (error) {
-        if (isAbort(error, signal)) {
-          throw error
-        }
-        if (error instanceof Error && error.message === 'NDJSON 解析失败') {
-          yield { type: 'error', error: internalError(), retryable: false }
-          return
-        }
-        yield {
-          type: 'error',
-          error: { code: 'upstream_error', message: '网络连接失败' },
-          retryable: true,
-        }
-      }
+      yield* singleStep(req, signal)
     },
     now: () => performance.now(),
     sleep(ms, signal) {

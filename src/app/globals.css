@@ -15,6 +15,7 @@
   --color-role-reason: var(--role-reason);
   --color-role-produce: var(--role-produce);
   --color-role-review: var(--role-review);
+  --color-ultra: var(--ultra);
   --color-edge: var(--edge);
   --color-grid-dot: var(--grid-dot);
   --color-ink-muted: var(--ink-muted);
@@ -76,6 +77,8 @@
   --role-reason: #199e70;
   --role-produce: #d95926;
   --role-review: #c3cbd1;
+  /* Ultra 模式的专属强调色：各主题共用，和品牌色、状态色都拉开距离。 */
+  --ultra: #e879f9;
   --edge: #2b3a45;
   --grid-dot: #1c2830;
   --ink-muted: #5b6b75;
@@ -747,6 +750,75 @@ button.stellar-intro-fade {
 .canvas-agent-card[data-status='skipped'] {
   border-style: dashed;
   opacity: 0.45;
+}
+
+/* Ultra：一个环节的多路 Agent、多路择优与方向校准框在同一个环节框里。 */
+.ultra-group {
+  background: radial-gradient(
+    120% 90% at 0% 0%,
+    color-mix(in oklab, var(--ultra) 7%, transparent),
+    transparent 60%
+  );
+}
+
+.ultra-group-live {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--ultra) 18%, transparent),
+    0 0 36px -12px var(--ultra);
+}
+
+.ultra-hex {
+  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  border-radius: 0;
+}
+
+/* 择优结束后：被采用的一路亮起描边，其余各路退到背景里。 */
+.canvas-agent-card[data-pick='picked'] {
+  border-color: var(--ultra);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--ultra) 45%, transparent),
+    0 0 28px -8px var(--ultra);
+}
+
+.canvas-agent-card[data-pick='unpicked'] {
+  opacity: 0.42;
+  filter: saturate(0.4);
+}
+
+.ultra-switch-on {
+  border-color: color-mix(in oklab, var(--ultra) 55%, transparent);
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--ultra) 16%, transparent),
+    color-mix(in oklab, var(--brand) 8%, transparent)
+  );
+  box-shadow: 0 0 26px -10px var(--ultra);
+}
+
+.ultra-text {
+  background: linear-gradient(100deg, var(--ultra), var(--brand), var(--ultra));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ultra-group-live {
+    animation: ultra-breathe 1.8s ease-in-out infinite;
+  }
+
+  .ultra-text {
+    animation: gradient-pan 4s linear infinite;
+  }
+}
+
+@keyframes ultra-breathe {
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--ultra) 32%, transparent),
+      0 0 48px -10px var(--ultra);
+  }
 }
 
 .canvas-avatar-ring::before {

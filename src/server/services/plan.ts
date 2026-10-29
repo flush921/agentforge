@@ -23,9 +23,10 @@ export async function planTask(
   level: 2 | 3 | 4,
   assessment: ComplexityAssessment,
   signal: AbortSignal,
+  options: { ultra?: boolean } = {},
 ): Promise<ServiceResult<PlanResponse>> {
   const allowedTools = usableTools(assistant.capabilities)
-  const built = buildPlanPrompt(assistant, task, level, assessment, allowedTools)
+  const built = buildPlanPrompt(assistant, task, level, assessment, allowedTools, options)
   let messages: LlmJsonRequest['messages'] = [{ role: 'user', content: built.user }]
   const attempts: PlanResponse['attempts'] = []
 

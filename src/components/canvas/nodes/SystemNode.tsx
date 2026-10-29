@@ -27,7 +27,9 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
         : '已拦截'
       : level === undefined
         ? '评估中'
-        : `L${level} · ${LEVELS[level].label}`
+        : runState.decision?.ultra === true
+          ? `L${level} · 超编排`
+          : `L${level} · ${LEVELS[level].label}`
   } else if (graphNode.kind === 'planner') {
     title = '规划'
     detail =
@@ -35,7 +37,9 @@ function SystemNodeView({ data }: NodeProps<SystemFlowNode>) {
         ? '规划中…'
         : runState.planSource === 'fallback'
           ? '已退回单子 Agent'
-          : `${runState.plan?.nodes.length ?? 0} 个环节`
+          : runState.ultra && runState.plan?.level === 4
+            ? `${runState.plan.nodes.length} 环节 → ${runState.nodeOrder.length} Agent`
+            : `${runState.plan?.nodes.length ?? 0} 个环节`
   } else if (graphNode.kind === 'output') {
     title = '交付'
     detail =
@@ -107,7 +111,8 @@ export const SystemNode = memo(SystemNodeView, (previous, next) => {
       a.runState.status === b.runState.status &&
       a.runState.plan === b.runState.plan &&
       a.runState.planFailures === b.runState.planFailures &&
-      a.runState.planSource === b.runState.planSource
+      a.runState.planSource === b.runState.planSource &&
+      a.runState.nodeOrder.length === b.runState.nodeOrder.length
     )
   }
   return a.runState.status === b.runState.status && a.runState.degraded === b.runState.degraded

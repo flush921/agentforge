@@ -2,7 +2,7 @@ import 'server-only'
 
 import type { ToolName, Usage } from '@/lib/contracts/common'
 
-export type LlmKind = 'generate' | 'assess' | 'plan' | 'review'
+export type LlmKind = 'generate' | 'assess' | 'plan' | 'review' | 'judge' | 'align'
 
 export interface LlmJsonRequest {
   kind: LlmKind

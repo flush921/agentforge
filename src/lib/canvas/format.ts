@@ -39,6 +39,8 @@ const ROLE_INFO: Record<AgentRole, RoleInfo> = {
   writer: { family: 'produce', label: '写作' },
   synthesizer: { family: 'produce', label: '综合' },
   reviewer: { family: 'review', label: '审校' },
+  judge: { family: 'review', label: '多路择优' },
+  aligner: { family: 'review', label: '方向校准' },
 }
 
 /** lib 层只提供族与中文名，图标在组件层按 family 映射。 */

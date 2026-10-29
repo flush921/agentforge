@@ -32,7 +32,13 @@ function sweepExpired(now: number): void {
   }
 }
 
-export function checkRateLimit(bucket: Bucket, key: string, now = Date.now()): RateLimitResult {
+/** weight：一次请求占用的次数。批量接口按其中的步骤数计，和逐个请求的额度一致。 */
+export function checkRateLimit(
+  bucket: Bucket,
+  key: string,
+  now = Date.now(),
+  weight = 1,
+): RateLimitResult {
   if (table.size > MAX_KEYS) {
     sweepExpired(now)
   }
@@ -40,15 +46,15 @@ export function checkRateLimit(bucket: Bucket, key: string, now = Date.now()): R
   const id = storageKey(bucket, key)
   const entry = table.get(id)
   if (entry === undefined || now >= entry.resetAt) {
-    table.set(id, { count: 1, resetAt: now + WINDOW_MS })
+    table.set(id, { count: weight, resetAt: now + WINDOW_MS })
     return { ok: true }
   }
 
-  if (entry.count >= LIMITS[bucket]) {
+  if (entry.count + weight > LIMITS[bucket]) {
     return { ok: false, retryAfterSec: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)) }
   }
 
-  entry.count += 1
+  entry.count += weight
   return { ok: true }
 }
 

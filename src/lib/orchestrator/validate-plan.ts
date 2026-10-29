@@ -246,5 +246,12 @@ export function validatePlan(
     }
   }
 
+  // Ultra 的多路、择优与校准节点由编排器展开生成，规划师的计划里不能自带。
+  for (const node of plan.nodes) {
+    if (node.role === 'judge' || node.role === 'aligner' || node.ultra !== undefined) {
+      errors.push(`节点 ${node.id} 不得使用 ${node.role} 角色或 ultra 字段`)
+    }
+  }
+
   return errors
 }

@@ -35,6 +35,7 @@ export async function POST(request: Request): Promise<Response> {
       body.data.level,
       body.data.assessment,
       request.signal,
+      body.data.ultra === true ? { ultra: true } : {},
     )
     if (!result.ok) {
       const mapped = toApiError(result.error, request.signal, ROUTE)

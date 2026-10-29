@@ -23,6 +23,7 @@ export interface ConversationSession {
   id: number
   task: string
   intensity: number
+  ultra?: boolean
   snapshot?: RunState
 }
 
@@ -128,7 +129,7 @@ function SessionView({
   current: boolean
   running: boolean
   onConfirm: (accept: boolean) => void
-  onRetry: (task: string, intensity: number) => void
+  onRetry: (task: string, intensity: number, ultra: boolean) => void
 }) {
   const guard = state?.assessment?.guard
   const isCrisis = guard?.kind === 'crisis'
@@ -184,7 +185,12 @@ function SessionView({
                 安全拦截
               </span>
             ) : guard === undefined && state.level !== undefined ? (
-              <span className="font-mono text-brand">L{state.level}</span>
+              <span
+                className={cn('font-mono', state.ultra ? 'ultra-text font-semibold' : 'text-brand')}
+              >
+                L{state.level}
+                {state.ultra ? ' · 超编排' : ''}
+              </span>
             ) : null}
             {guard === undefined && state.nodeOrder.length > 0 ? (
               <span className="text-text-secondary">子 Agent ×{state.nodeOrder.length}</span>
@@ -192,7 +198,11 @@ function SessionView({
           </div>
           {current ? <Progress state={state} phase={phase} /> : null}
           {current && phase === 'awaiting_confirm' ? (
-            <PlanConfirmBar plan={pendingPlan ?? state.plan!} onConfirm={onConfirm} />
+            <PlanConfirmBar
+              plan={pendingPlan ?? state.plan!}
+              ultra={state.ultra}
+              onConfirm={onConfirm}
+            />
           ) : null}
           {current && state.status === 'running' && phase !== 'awaiting_confirm'
             ? (() => {
@@ -255,7 +265,7 @@ function SessionView({
                 variant="outline"
                 className="mt-3"
                 disabled={running}
-                onClick={() => onRetry(session.task, session.intensity)}
+                onClick={() => onRetry(session.task, session.intensity, session.ultra === true)}
               >
                 重试
               </Button>
@@ -291,7 +301,7 @@ export function ConversationPanel({
   running: boolean
   onPickStarter: (starter: string) => void
   onConfirm: (accept: boolean) => void
-  onRetry: (task: string, intensity: number) => void
+  onRetry: (task: string, intensity: number, ultra: boolean) => void
 }) {
   const currentId = sessions.at(-1)?.id
 

@@ -18,19 +18,25 @@ const LEVEL_RULES: Record<PlannerLevel, string> = {
   4: '先用并行或串行完成主体工作，再挂一个审校节点作为质量闸门。审校节点的 role 为 reviewer，dependsOn 和 reviewTarget 都只指向最终节点；其他节点都不得依赖审校节点；最终节点不能是审校节点。',
 }
 
+/** Ultra 模式下每个节点都会由两个 Agent 并行执行再经两层审阅，宽而浅的图收益最大。 */
+const ULTRA_RULE =
+  '本次为 Ultra 模式：每个非审校节点都会由两个 Agent 并行完成，再经过对比评审和方向校准。请尽量把主体工作拆成 3~4 个可以同时开始的独立环节，再汇合成最终节点；串行链不超过 3 层。'
+
 export function buildPlanPrompt(
   assistant: AssistantSpec,
   task: string,
   level: PlannerLevel,
   assessment: ComplexityAssessment,
   tools: ToolName[],
+  options: { ultra?: boolean } = {},
 ): { instructions: string; user: string } {
   const config = LEVELS[level]
+  const ultra = options.ultra === true && level === 4
   const instructions = `你是多 Agent 编排规划师。请根据任务和指定的编排级别，设计一张由 Agent 节点组成的有向无环图（DAG）。
 
 本次级别：L${level}（${config.label}）
-结构要求：${LEVEL_RULES[level]}
-节点数：${config.minNodes}~${config.maxNodes} 个${level === 4 ? '（含审校节点）' : ''}
+结构要求：${LEVEL_RULES[level]}${ultra ? `\n${ULTRA_RULE}` : ''}
+节点数：${ultra ? 5 : config.minNodes}~${config.maxNodes} 个${level === 4 ? '（含审校节点）' : ''}
 
 可用角色：
 ${roleLines({ reviewer: level === 4 })}

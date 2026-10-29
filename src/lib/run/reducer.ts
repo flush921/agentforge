@@ -1,5 +1,6 @@
 import type { RunEvent } from '../contracts/events'
 import type { PlanNode } from '../contracts/plan'
+import { expandUltraPlan } from '../orchestrator/ultra'
 import type { NodeState, RunState } from './types'
 
 function createNodeState(node: PlanNode, dynamic: boolean, revisionOf?: string): NodeState {
@@ -59,6 +60,7 @@ export function initialRunState(): RunState {
     status: 'idle',
     task: '',
     intensity: 0.5,
+    ultra: false,
     planFailures: [],
     nodes: {},
     nodeOrder: [],
@@ -78,6 +80,7 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
       assistantId: event.assistantId,
       task: event.task,
       intensity: event.intensity,
+      ultra: event.ultra === true,
       status: 'assessing',
       lastT: nextT(fresh, event.t),
     }
@@ -112,8 +115,12 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         lastT: nextT(state, event.t),
       }
     case 'plan.completed': {
+      // Ultra 只展开规划师给出的 L4 计划；退回单 Agent 的兜底计划照常执行。
+      // 展开是纯函数，回放历史记录时得到同一张图。
+      const planNodes =
+        state.ultra && event.plan.level === 4 ? expandUltraPlan(event.plan) : event.plan.nodes
       const nodes: Record<string, NodeState> = {}
-      for (const node of event.plan.nodes) {
+      for (const node of planNodes) {
         nodes[node.id] = createNodeState(node, false)
       }
 
@@ -125,7 +132,7 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         planSource: event.source,
         outputNodeId: event.plan.outputNodeId,
         nodes,
-        nodeOrder: event.plan.nodes.map((node) => node.id),
+        nodeOrder: planNodes.map((node) => node.id),
         budget: { limit: event.budget, used: 0, exceeded: false },
         lastT: nextT(state, event.t),
       }
@@ -168,6 +175,8 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
             text: '',
             reasoning: '',
             toolCalls: [],
+            judge: undefined,
+            align: undefined,
             error: undefined,
             endedAt: undefined,
             startedAt: event.t,
@@ -211,6 +220,10 @@ export function applyEvent(state: RunState, event: RunEvent): RunState {
         ...node,
         review: { verdict: event.verdict, issues: event.issues },
       }))
+    case 'node.judge':
+      return updateNode(state, event.nodeId, event.t, (node) => ({ ...node, judge: event.result }))
+    case 'node.align':
+      return updateNode(state, event.nodeId, event.t, (node) => ({ ...node, align: event.result }))
     case 'node.completed': {
       const node = state.nodes[event.nodeId]
       if (!node) {

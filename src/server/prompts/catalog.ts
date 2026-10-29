@@ -9,6 +9,7 @@ import {
   type Direction,
   type ToolName,
 } from '@/lib/contracts/common'
+import { ULTRA_ROLES } from '@/lib/contracts/ultra'
 
 export const DIRECTION_DESCRIPTIONS: Record<Direction, string> = {
   agent: '通用智能体助手，自主规划并调用工具完成任务',
@@ -48,6 +49,8 @@ export const ROLE_DESCRIPTIONS: Record<AgentRole, string> = {
   reviewer: '审校员：只做质量检查，不产出正文',
   synthesizer: '整合者：合并多路结果',
   specialist: '领域专家：基于助手的专长直接作答',
+  judge: '择优评审员：比较多个 Agent 的同题成果，选出最好的一份',
+  aligner: '方向校准员：检查成果是否符合整体目标方向，必要时纠偏',
 }
 
 export const DIRECTION_LINES = directionSchema.options
@@ -61,9 +64,11 @@ export const CAPABILITY_LINES = capabilitySchema.options
 /**
  * 规划提示词里的角色清单。L2/L3 不允许审校节点，就干脆不把 reviewer 列给模型看——
  * 实测清单里有 reviewer 时，模型几乎每次都会在计划末尾加一个「最终核对」节点，被校验打回。
+ * Ultra 的择优与校准角色只由编排器生成，任何级别都不列出。
  */
 export function roleLines(options: { reviewer: boolean }): string {
   return agentRoleSchema.options
+    .filter((role) => !ULTRA_ROLES.includes(role))
     .filter((role) => options.reviewer || role !== 'reviewer')
     .map((role) => `- ${role} ${ROLE_DESCRIPTIONS[role]}`)
     .join('\n')

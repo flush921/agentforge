@@ -14,6 +14,8 @@ const MOCK_DELAYS: Record<LlmKind, number> = {
   assess: 300,
   plan: 900,
   review: 300,
+  judge: 400,
+  align: 300,
 }
 
 let delayOverride: number | undefined
@@ -55,7 +57,7 @@ function lastUserContent(req: { messages: Array<{ role: string; content: string 
   return req.messages.findLast((message) => message.role === 'user')?.content ?? ''
 }
 
-function readData(content: string, tag: 'feedback' | 'request' | 'task'): string {
+function readData(content: string, tag: 'feedback' | 'request' | 'task' | 'deliverable'): string {
   const match = new RegExp(`<${tag}>\n([\\s\\S]*?)\n</${tag}>`).exec(content)
   return match?.[1]?.replaceAll('<\\/', '</') ?? ''
 }
@@ -92,6 +94,7 @@ function readWorkerInput(req: AgentLlmRequest): MockStepContentInput {
         return req.instructions.includes(`角色是「${label}」`)
       }) ?? 'specialist')
   const feedback = readData(user, 'feedback')
+  const lane = /其中一路，取向「([^」]+)」/.exec(req.instructions)?.[1]
 
   return {
     role,
@@ -106,8 +109,23 @@ function readWorkerInput(req: AgentLlmRequest): MockStepContentInput {
       (match) => match[1] ?? '',
     ),
     isFinal: standalone || req.instructions.includes('你的产出会直接交付给用户'),
+    ...(lane !== undefined ? { lane } : {}),
     ...(feedback.length > 0 ? { revision: { feedback } } : {}),
   }
+}
+
+function textHash(text: string): number {
+  let hash = 0
+  for (const char of text) {
+    hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0
+  }
+  return hash
+}
+
+/** 同一份成果在交叉评审的两个位置上得到相同分数，胜负与先后顺序无关。 */
+function mockScores(text: string): number[] {
+  const hash = textHash(text)
+  return [6 + (hash % 4), 6 + ((hash >>> 3) % 4), 6 + ((hash >>> 6) % 4)]
 }
 
 function responseText(req: LlmJsonRequest): string {
@@ -118,6 +136,34 @@ function responseText(req: LlmJsonRequest): string {
   }
   if (req.kind === 'assess') {
     return JSON.stringify(assessHeuristic(readData(user, 'task')))
+  }
+  if (req.kind === 'judge') {
+    const candidates = [...user.matchAll(/<candidate no="\d+">\n([\s\S]*?)\n<\/candidate>/g)].map(
+      (match) => match[1] ?? '',
+    )
+    const scores = candidates.map(mockScores)
+    const sums = scores.map((item) => item.reduce((total, score) => total + score, 0))
+    return JSON.stringify({
+      scores,
+      prefer: sums.indexOf(Math.max(...sums)) + 1,
+      reason: '要点覆盖更完整，依据交代更清楚，下游可以直接使用。',
+    })
+  }
+  if (req.kind === 'align') {
+    // 按成果内容确定性地决定是否偏离，离线演示里也能看到纠偏。
+    const drifted = textHash(readData(user, 'deliverable')) % 3 === 0
+    return JSON.stringify(
+      drifted
+        ? {
+            score: 5,
+            drift: [
+              '收拢到用户任务的核心目标，删去与整体策略无关的展开',
+              '补上与后续环节衔接的结论',
+            ],
+            summary: '成果有所偏题，已按整体目标纠偏。',
+          }
+        : { score: 8, drift: [], summary: '方向与整体目标一致，沿用择优结果。' },
+    )
   }
   if (req.kind === 'review') {
     return JSON.stringify(

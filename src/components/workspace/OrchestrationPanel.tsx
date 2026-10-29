@@ -64,6 +64,7 @@ export function OrchestrationPanel({ state, phase }: { state: RunState; phase: R
             state={state}
             onOpen={openNode}
             initialCamera={phase === 'awaiting_confirm' ? 'overview' : 'follow'}
+            revealAll={phase === 'awaiting_confirm'}
           />
         ) : (
           <RunNodeList state={state} onOpen={openNode} />

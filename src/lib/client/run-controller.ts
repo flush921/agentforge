@@ -44,6 +44,7 @@ export function createRunController({
     assistant,
     task,
     intensity,
+    ultra,
     confirmBeforeRun,
   }: StartRunInput): Promise<void> {
     if (activeController !== undefined) return
@@ -82,7 +83,7 @@ export function createRunController({
       }
 
       const finalState = await runOrchestration(
-        { assistant, task, intensity },
+        { assistant, task, intensity, ...(ultra === true ? { ultra: true } : {}) },
         deps,
         (event) => useRunStore.getState().push(event),
         controller.signal,

@@ -36,6 +36,7 @@ function FlowEdgeView({
   const done = data?.done ?? false
   const kind = data?.kind ?? 'flow'
   const color = data?.color ?? 'var(--edge)'
+  const pick = data?.pick
   const label = kind === 'feedback' ? '返工意见' : kind === 'fallback' ? '降级' : undefined
   const horizontal = Math.abs(targetX - sourceX) >= Math.abs(targetY - sourceY)
   const labelOffset = horizontal ? -48 / Math.max(zoom, 0.01) : 0
@@ -49,11 +50,31 @@ function FlowEdgeView({
         style={{
           stroke: color,
           // 返工虚线在缩小时按比例加粗，保证全览里仍能看清返工回路。
+          // 择优采用的一路加粗发光，其余各路变成暗淡虚线。
           strokeWidth:
-            kind === 'feedback' ? Math.min(3.5, 2 / Math.max(zoom, 0.01)) : active ? 2 : 1.5,
-          strokeOpacity: active || kind === 'feedback' ? 1 : done ? 0.45 : 1,
-          strokeDasharray: kind === 'flow' ? undefined : '6 4',
-          filter: active ? 'drop-shadow(0 0 3px var(--brand))' : undefined,
+            kind === 'feedback'
+              ? Math.min(3.5, 2 / Math.max(zoom, 0.01))
+              : pick === 'picked'
+                ? 2.5
+                : active
+                  ? 2
+                  : 1.5,
+          strokeOpacity:
+            pick === 'picked'
+              ? 1
+              : pick === 'unpicked'
+                ? 0.3
+                : active || kind === 'feedback'
+                  ? 1
+                  : done
+                    ? 0.45
+                    : 1,
+          strokeDasharray: kind === 'flow' && pick !== 'unpicked' ? undefined : '6 4',
+          filter: active
+            ? 'drop-shadow(0 0 3px var(--brand))'
+            : pick === 'picked'
+              ? 'drop-shadow(0 0 4px var(--ultra))'
+              : undefined,
         }}
       />
       {active && !reducedMotion ? (
@@ -104,6 +125,7 @@ export const FlowEdge = memo(FlowEdgeView, (previous, next) => {
     a?.active === b?.active &&
     a?.done === b?.done &&
     a?.kind === b?.kind &&
-    a?.color === b?.color
+    a?.color === b?.color &&
+    a?.pick === b?.pick
   )
 })

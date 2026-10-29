@@ -33,6 +33,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
   const [task, setTask] = useState('')
   const [intensity, setIntensity] = useState(assistant.defaultIntensity)
   const [confirmBeforeRun, setConfirmBeforeRun] = useState(false)
+  const [ultra, setUltra] = useState(false)
   const [sessions, setSessions] = useState<ConversationSession[]>([])
   const [mobileTab, setMobileTab] = useState<WorkspaceTab>('conversation')
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -63,14 +64,17 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
   }, [mobileTab, phase])
 
   const start = useCallback(
-    (nextTask = task, nextIntensity = intensity) => {
+    (nextTask = task, nextIntensity = intensity, nextUltra = ultra) => {
       const normalized = nextTask.trim()
       if (normalized.length === 0 || running) return
       const id = conversationId.current + 1
       conversationId.current = id
       setIntensity(nextIntensity)
       setTask('')
-      setSessions((current) => [...current, { id, task: normalized, intensity: nextIntensity }])
+      setSessions((current) => [
+        ...current,
+        { id, task: normalized, intensity: nextIntensity, ultra: nextUltra },
+      ])
       setMobileTab('canvas')
       requestAnimationFrame(() => {
         conversationScroll.current?.scrollTo({ top: conversationScroll.current.scrollHeight })
@@ -79,6 +83,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
         assistant,
         task: normalized,
         intensity: nextIntensity,
+        ultra: nextUltra,
         confirmBeforeRun,
       }).then(() => {
         if (!mounted.current) return
@@ -94,7 +99,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
         setHistoryRefresh((current) => current + 1)
       })
     },
-    [assistant, confirmBeforeRun, intensity, running, task],
+    [assistant, confirmBeforeRun, intensity, running, task, ultra],
   )
 
   const stop = useCallback(() => {
@@ -185,6 +190,8 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
             onIntensityChange={setIntensity}
             confirmBeforeRun={confirmBeforeRun}
             onConfirmBeforeRunChange={setConfirmBeforeRun}
+            ultra={ultra}
+            onUltraChange={setUltra}
             running={running}
             onSend={() => start()}
             onStop={stop}

@@ -9,7 +9,17 @@ export interface MockStepContentInput {
   task: string
   upstreamTitles: string[]
   isFinal: boolean
+  /** Ultra 多路节点的取向名称，各路模板内容因此不同。 */
+  lane?: string
   revision?: { feedback: string }
+}
+
+const laneFocus: Record<string, string> = {
+  严谨: '本路取向严谨：逐项核对事实与依据，不确定之处明确标出。',
+  深度: '本路取向深度：追问现象背后的原因，给出更深一层的洞察。',
+  落地: '本路取向落地：拆成可照做的步骤，并给出时间安排。',
+  全面: '本路取向全面：从多个视角覆盖问题，补齐容易遗漏的例外。',
+  创新: '本路取向创新：尝试非常规的思路，给出不容易想到的角度。',
 }
 
 const roleFocus: Record<AgentRole, string> = {
@@ -20,6 +30,8 @@ const roleFocus: Record<AgentRole, string> = {
   reviewer: '逐项检查任务覆盖、事实依据和表达质量，只记录会实际影响使用的问题。',
   synthesizer: '合并不同方向的材料，消除重复和冲突，保留有价值差异并形成统一的结论框架。',
   specialist: '结合领域常识解释关键概念，给出直接可用的回答，并明确信息不足时不应继续推断的边界。',
+  judge: '对照环节要求比较两份同题成果，选出更完整、更可靠、更可用的一份。',
+  aligner: '对照整体目标逐条落实纠偏意见，保留择优结果的优点，让成果重新服务于用户的真正需求。',
 }
 
 export function buildMockStepContent(input: MockStepContentInput): string {
@@ -40,6 +52,9 @@ export function buildMockStepContent(input: MockStepContentInput): string {
   }
   if (revision !== undefined) {
     lines.push(revision)
+  }
+  if (input.lane !== undefined) {
+    lines.push(laneFocus[input.lane] ?? `本路取向${input.lane}。`)
   }
 
   if (input.isFinal) {

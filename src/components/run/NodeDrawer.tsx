@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import { Check, Wrench, X } from 'lucide-react'
 import { Markdown } from '@/components/markdown/Markdown'
 import { formatTokens, roleInfo } from '@/lib/canvas/format'
+import { JUDGE_DIMENSIONS } from '@/lib/contracts/ultra'
+import { LANE_LABELS, totalScore } from '@/lib/orchestrator/ultra'
 import type { RunState } from '@/lib/run/types'
 import { cn } from '@/lib/utils'
 import { roleIcons } from '../canvas/role-icons'
@@ -66,6 +68,74 @@ export function NodeDrawer({
               </div>
             </SheetHeader>
             <div className="space-y-6 p-5 text-sm">
+              {/* Ultra 两层审阅的结论是打开评审、校准节点最想看的内容，放在最前面。 */}
+              {nodeState.judge !== undefined ? (
+                <DrawerSection title="第一层审阅 · 多路择优">
+                  <p className="font-medium text-ultra">
+                    采用「{LANE_LABELS[nodeState.judge.winner]}」一路
+                    {nodeState.judge.walkover === true ? '（未经评分直接采用）' : ''}
+                  </p>
+                  <p className="text-xs leading-5 text-text-secondary">{nodeState.judge.reason}</p>
+                  {nodeState.judge.scores !== undefined ? (
+                    <table className="w-full text-center text-xs">
+                      <thead className="text-[10px] text-text-secondary">
+                        <tr>
+                          <th className="py-1 text-left font-normal">正倒序评审均分</th>
+                          {JUDGE_DIMENSIONS.map((name) => (
+                            <th key={name} className="py-1 font-normal">
+                              {name}
+                            </th>
+                          ))}
+                          <th className="py-1 font-normal">总分</th>
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono">
+                        {nodeState.judge.scores.map((item) => (
+                          <tr
+                            key={item.lane}
+                            className={
+                              nodeState.judge?.winner === item.lane
+                                ? 'text-ultra'
+                                : 'text-text-secondary'
+                            }
+                          >
+                            <td className="py-1 text-left font-sans">{LANE_LABELS[item.lane]}</td>
+                            {item.scores.map((score, index) => (
+                              <td key={JUDGE_DIMENSIONS[index]} className="py-1">
+                                {score}
+                              </td>
+                            ))}
+                            <td className="py-1 font-semibold">{totalScore(item.scores)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </DrawerSection>
+              ) : null}
+              {nodeState.align !== undefined ? (
+                <DrawerSection title="第二层审阅 · 方向校准">
+                  <p
+                    className={cn(
+                      'font-medium',
+                      nodeState.align.aligned ? 'text-success' : 'text-warning',
+                    )}
+                  >
+                    方向 {nodeState.align.score}/10 ·{' '}
+                    {nodeState.align.aligned
+                      ? '与整体目标一致，沿用择优结果'
+                      : '偏离目标，已当场纠偏'}
+                  </p>
+                  <p className="text-xs leading-5 text-text-secondary">{nodeState.align.summary}</p>
+                  {nodeState.align.drift.length > 0 ? (
+                    <ol className="list-decimal space-y-2 pl-5 text-xs leading-5 text-text-secondary">
+                      {nodeState.align.drift.map((item, index) => (
+                        <li key={`${index}-${item}`}>{item}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </DrawerSection>
+              ) : null}
               <DrawerSection title="指令">
                 <p className="leading-6 text-text-primary">{nodeState.node.instruction}</p>
               </DrawerSection>
