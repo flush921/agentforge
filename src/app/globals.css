@@ -690,7 +690,9 @@ button.stellar-intro-fade {
   --xy-attribution-background-color: transparent;
 }
 
+/* 画布关掉了选中和拖拽，ReactFlow 会给节点外层设 pointer-events: none，卡片继承后点不开详情；这里让卡片重新接收点击。 */
 .canvas-agent-card {
+  pointer-events: all;
   background:
     linear-gradient(
       160deg,
