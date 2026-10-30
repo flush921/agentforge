@@ -5,10 +5,14 @@ import { StellarIntro } from '@/components/visual/StellarIntro'
 import { HomeClient } from './HomeClient'
 
 const stats = [
-  { value: '86.7%', label: '留出集定级准确率' },
-  { value: '−63%', label: 'Token 消耗（对比一律满配）' },
-  { value: 'L0–L4', label: '五级自适应编排' },
+  { value: '86.7%', label: '难度判断准确率' },
+  { value: '省 63%', label: 'Token 消耗' },
+  { value: '1 → 40', label: '子 Agent 数量' },
 ]
+
+// 格子里只放短标签，比较对象和口径放在这里，避免读者误解数字的来源。
+const statsNote =
+  '准确率：30 道未参与调参的新题，每题测 2 轮。节省：按真实运行的各级平均消耗估算，对比每题都走带审校的多 Agent 流程（不含 Ultra）。子 Agent：按任务难度从 1 个到 40 个，40 为线上实测最多。'
 
 export default function Home() {
   return (
@@ -35,7 +39,7 @@ export default function Home() {
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="flex flex-col-reverse bg-background/70 px-4 py-3 backdrop-blur"
+                  className="flex flex-col-reverse justify-end bg-background/70 px-4 py-3 backdrop-blur"
                 >
                   <dt className="mt-1 text-[11px] leading-4 text-ink-muted">{stat.label}</dt>
                   <dd className="font-mono text-xl font-semibold text-text-primary sm:text-2xl">
@@ -44,6 +48,7 @@ export default function Home() {
                 </div>
               ))}
             </dl>
+            <p className="mt-2 max-w-xl text-[10px] leading-4 text-ink-muted">{statsNote}</p>
           </div>
           <OrchestrationShowcase />
         </section>
