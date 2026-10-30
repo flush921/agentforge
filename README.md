@@ -253,7 +253,7 @@ web/
 | `npm run build`                       | 构建 Next.js 生产与 standalone 产物                      |
 | `npm run start`                       | 使用 Next 启动生产服务器                                 |
 | `npm run lint`                        | 运行 ESLint                                              |
-| `npm run typecheck`                   | 运行 TypeScript 类型检查                                 |
+| `npm run typecheck`                   | 先生成路由类型，再运行 TypeScript 类型检查               |
 | `npm run test`                        | 运行全部非 live 测试                                     |
 | `npm run test:watch`                  | 以监听模式运行测试                                       |
 | `npm run format`                      | 使用 Prettier 格式化                                     |
