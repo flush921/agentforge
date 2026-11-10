@@ -30,6 +30,7 @@ function ReviewerNodeView({ data }: NodeProps<ReviewerFlowNode>) {
         type="button"
         aria-label={`环节：${nodeState.node.title}，审校，${nodeStatusLabel[nodeState.status]}`}
         onClick={() => onOpen(nodeState.node.id)}
+        title="点击查看详情"
         data-status={nodeState.status}
         style={accentStyle('review')}
         className="canvas-agent-card nodrag nopan relative flex h-20 w-[184px] flex-col overflow-hidden rounded-[14px] border border-border px-3 py-2 text-left shadow-lg shadow-black/30 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand"

@@ -17,6 +17,7 @@ import type { Plan } from '@/lib/contracts/plan'
 import type { RunState } from '@/lib/run/types'
 import { cn } from '@/lib/utils'
 import type { RunPhase } from '@/stores/run-store'
+import { CopyButton } from './CopyButton'
 import { PlanConfirmBar } from './PlanConfirmBar'
 
 export interface ConversationSession {
@@ -91,7 +92,7 @@ function Welcome({
         ))}
       </div>
       <p className="text-xs leading-5 text-ink-muted">
-        {'试试从简单到复杂，看看子 Agent 数量怎么变化'}
+        {'点一条示例就会直接运行。试试从简单到复杂，看看子 Agent 数量怎么变化'}
       </p>
     </section>
   )
@@ -238,6 +239,11 @@ function SessionView({
                 </div>
               ) : null}
               {state.output !== undefined ? <Markdown>{state.output}</Markdown> : null}
+              {state.output !== undefined && guard === undefined ? (
+                <div className="mt-3 flex justify-end">
+                  <CopyButton text={state.output} />
+                </div>
+              ) : null}
               {state.degraded ? <p className="mt-3 text-xs text-warning">本次为降级交付</p> : null}
               {state.warnings.length > 0 && !isCrisis ? (
                 <div className="mt-3 rounded-lg border border-warning/25 bg-warning/10 p-3 text-xs text-warning">

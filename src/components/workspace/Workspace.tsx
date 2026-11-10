@@ -178,7 +178,8 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
               pendingPlan={pendingPlan}
               startError={startError}
               running={running}
-              onPickStarter={setTask}
+              // 点示例直接运行，不用再点一次发送；Ultra 和执行前确认按当前开关的状态生效。
+              onPickStarter={(starter) => start(starter)}
               onConfirm={decide}
               onRetry={start}
             />

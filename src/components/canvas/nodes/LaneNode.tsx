@@ -54,6 +54,7 @@ function LaneNodeView({ data }: NodeProps<LaneFlowNode>) {
         type="button"
         aria-label={`多路：${nodeState.node.title}，${nodeStatusLabel[nodeState.status]}${pick === 'picked' ? '，已采用' : ''}`}
         onClick={() => onOpen(nodeState.node.id)}
+        title="点击查看详情"
         data-status={nodeState.status}
         data-pick={pick}
         data-lane={lane}

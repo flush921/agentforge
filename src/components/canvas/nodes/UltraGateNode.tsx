@@ -71,6 +71,7 @@ function UltraGateNodeView({ data }: NodeProps<UltraGateFlowNode>) {
         type="button"
         aria-label={`环节：${nodeState.node.title}，${label}，${nodeStatusLabel[nodeState.status]}`}
         onClick={() => onOpen(nodeState.node.id)}
+        title="点击查看详情"
         data-status={nodeState.status}
         data-ultra-gate={judge ? 'judge' : 'align'}
         style={{ '--node-accent': 'var(--ultra)' } as React.CSSProperties}

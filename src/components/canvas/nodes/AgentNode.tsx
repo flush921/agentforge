@@ -35,6 +35,7 @@ function AgentNodeView({ data }: NodeProps<AgentFlowNode>) {
         type="button"
         aria-label={`环节：${nodeState.node.title}，${info.label}，${nodeStatusLabel[nodeState.status]}`}
         onClick={() => onOpen(nodeState.node.id)}
+        title="点击查看详情"
         data-status={nodeState.status}
         style={accentStyle(info.family)}
         className="canvas-agent-card nodrag nopan relative flex h-24 w-[216px] flex-col overflow-hidden rounded-[14px] border border-border px-3 py-2 text-left shadow-lg shadow-black/30 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand"

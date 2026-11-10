@@ -240,6 +240,15 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind 4 起按钮默认是箭头指针；可点击的元素统一用小手，禁用时恢复箭头。 */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  [role='switch']:not(:disabled),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
 }
 
 /* ---------- 全站视觉：极光、玻璃面板、光标高光 ---------- */
@@ -551,8 +560,28 @@ button.stellar-intro-fade {
     animation: stellar-letter 1000ms 6400ms ease forwards;
   }
 
+  /* 入口按钮：星空和两侧文字亮起后（约 2.4 秒）就出现，比形态说明早 4 秒。 */
+  .stellar-cta {
+    opacity: 0;
+    animation: stellar-letter 900ms 2400ms ease forwards;
+  }
+
+  .stellar-cta-pill {
+    animation: stellar-cta-glow 2.8s 3400ms ease-in-out infinite;
+  }
+
   .stellar-bounce {
     animation: stellar-bounce 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes stellar-cta-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(201 220 255 / 0);
+  }
+  50% {
+    box-shadow: 0 0 28px -4px rgb(201 220 255 / 0.55);
   }
 }
 
@@ -785,6 +814,21 @@ button.stellar-intro-fade {
 .canvas-agent-card[data-pick='unpicked'] {
   opacity: 0.42;
   filter: saturate(0.4);
+}
+
+/* 悬停时卡片提亮、描边变亮，提示「可以点开看详情」。放在状态样式之后，才不会被它们盖住。 */
+.canvas-agent-card:hover,
+.canvas-agent-card:focus-visible {
+  border-color: var(--node-accent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--node-accent) 55%, transparent),
+    0 10px 30px -10px var(--node-accent);
+  filter: brightness(1.12);
+  opacity: 1;
+}
+
+.canvas-agent-card:active {
+  filter: brightness(0.96);
 }
 
 .ultra-switch-on {

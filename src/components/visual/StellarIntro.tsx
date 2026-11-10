@@ -123,11 +123,19 @@ export function StellarIntro() {
               : 'smooth',
           })
         }
-        className="stellar-intro-fade absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 rounded-full px-4 py-2 text-xs tracking-[0.3em] text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        // 水平居中由 globals.css 的 button.stellar-intro-fade 用 transform 完成；
+        // 这里不能再加 -translate-x-1/2，否则会向左平移两次。
+        className="stellar-intro-fade group absolute bottom-6 left-1/2 rounded-2xl px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
-        <span className="stellar-late flex flex-col items-center gap-1">
-          向下滚动 · 开始创造
-          <ChevronDown className="stellar-bounce size-4" aria-hidden />
+        {/* 预指导反馈：首屏只有星空时看不出要往下滑。入口按钮在星空亮起后就出现，不等银河成形。 */}
+        <span className="stellar-cta flex flex-col items-center gap-2">
+          <span className="stellar-cta-pill inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/[0.07] px-6 py-2.5 text-sm font-medium tracking-[0.25em] text-text-primary backdrop-blur transition-colors group-hover:border-white/50 group-hover:bg-white/[0.13]">
+            开始使用
+            <ChevronDown className="stellar-bounce size-4" aria-hidden />
+          </span>
+          <span className="whitespace-nowrap text-[11px] tracking-[0.2em] text-text-secondary">
+            向下滚动 · 一句话生成专属 Agent
+          </span>
         </span>
       </button>
     </section>
