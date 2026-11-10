@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { reduceEvents } from '../run/reducer'
-import { DEMO_RUN } from './demo-run'
+import { DEMO_SPEED, demoNote, FALLBACK_DEMO_RUN, parseDemoRun } from './demo-run'
 import {
   getTourStep,
   isTourStepId,
@@ -77,24 +79,70 @@ describe('新手教程步骤', () => {
 })
 
 describe('演示回放的数据', () => {
-  it('和教程里的说明一致：两路调研并行，审校打回后长出修订和复核节点，最后完成', () => {
-    const events = DEMO_RUN.events
-    const state = reduceEvents(events)
-    const started = (nodeId: string) =>
-      events.find((event) => event.type === 'node.started' && event.nodeId === nodeId)?.t ?? -1
-    const completed = (nodeId: string) =>
-      events.find((event) => event.type === 'node.completed' && event.nodeId === nodeId)?.t ?? -1
+  const recorded = parseDemoRun(
+    JSON.parse(readFileSync(resolve(process.cwd(), 'public/demo-run.json'), 'utf8')),
+  )
 
-    expect(state.status).toBe('completed')
-    expect(started('research_b')).toBeGreaterThan(started('research_a'))
-    expect(started('research_b')).toBeLessThan(completed('research_a'))
-    expect(events.some((event) => event.type === 'node.review' && event.verdict === 'revise')).toBe(
-      true,
-    )
-    expect(events.filter((event) => event.type === 'node.added')).toHaveLength(2)
+  it('public/demo-run.json 是一次正常完成的真实运行，能通过校验', () => {
+    expect(recorded).toBeDefined()
+    expect(recorded?.recorded).toBe(true)
+    expect(recorded?.recordedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(recorded?.durationMs).toBeGreaterThan(60_000)
+    expect(reduceEvents(recorded?.events ?? []).status).toBe('completed')
   })
 
-  it('还是示例数据时不能标成真实录制', () => {
-    expect(DEMO_RUN.recorded).toBe(false)
+  it('录像和教程里的说明一致：三路调研并行，审校打回一次后长出修订和复核节点，复核通过', () => {
+    const events = recorded?.events ?? []
+    const research = events.filter(
+      (event) => event.type === 'node.started' && event.nodeId.startsWith('research_'),
+    )
+    const firstDone = events.find(
+      (event) => event.type === 'node.completed' && event.nodeId.startsWith('research_'),
+    )
+    const verdicts = events.flatMap((event) =>
+      event.type === 'node.review' ? [event.verdict] : [],
+    )
+
+    expect(research).toHaveLength(3)
+    // 三个调研节点都在第一个调研完成之前启动，才算同时运行。
+    for (const event of research) expect(event.t).toBeLessThan(firstDone?.t ?? -1)
+    expect(verdicts).toEqual(['revise', 'pass'])
+    expect(events.filter((event) => event.type === 'node.added')).toHaveLength(2)
+    // 审校截断修复后，这次运行不应再带「审校仍有未解决的意见」之类的警告。
+    const warnings = events.flatMap((event) =>
+      event.type === 'run.completed' ? (event.warnings ?? []) : [],
+    )
+    expect(warnings).toEqual([])
+  })
+
+  it('8 倍速回放的时长和教程写的「大约 25 秒」对得上', () => {
+    const seconds = (recorded?.durationMs ?? 0) / 1000 / DEMO_SPEED
+    expect(seconds).toBeGreaterThan(20)
+    expect(seconds).toBeLessThan(30)
+    expect(getTourStep('complex').body).toContain('大约 25 秒')
+  })
+
+  it('说明条写明是预先录制的真实运行，并带上当时的用时', () => {
+    const note = recorded === undefined ? '' : demoNote(recorded)
+    expect(note).toContain('预先录制的一次真实运行')
+    expect(note).toContain('3 分 17 秒')
+    expect(note).toContain('不是实时生成的结果')
+  })
+
+  it('格式不对、没跑完或没有事件的记录不采用', () => {
+    const raw: unknown = JSON.parse(
+      readFileSync(resolve(process.cwd(), 'public/demo-run.json'), 'utf8'),
+    )
+    expect(parseDemoRun(undefined)).toBeUndefined()
+    expect(parseDemoRun({ task: '只有任务' })).toBeUndefined()
+    expect(parseDemoRun({ ...(raw as object), status: 'failed' })).toBeUndefined()
+    expect(parseDemoRun({ ...(raw as object), events: [] })).toBeUndefined()
+  })
+
+  it('退回示例数据时不能标成真实录制', () => {
+    expect(FALLBACK_DEMO_RUN.recorded).toBe(false)
+    expect(reduceEvents(FALLBACK_DEMO_RUN.events).status).toBe('completed')
+    expect(demoNote(FALLBACK_DEMO_RUN)).toContain('示例数据')
+    expect(demoNote(FALLBACK_DEMO_RUN)).not.toContain('真实运行（')
   })
 })

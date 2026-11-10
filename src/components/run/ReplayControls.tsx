@@ -41,7 +41,7 @@ export function ReplayControls({
         className="flex rounded-lg border border-border bg-background/45 p-0.5"
         aria-label="回放速度"
       >
-        {([1, 2, 4] as const).map((speed) => (
+        {([1, 2, 4, 8] as const).map((speed) => (
           <button
             key={speed}
             type="button"
