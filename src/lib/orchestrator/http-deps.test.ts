@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { StepEvent } from '../contracts/api'
+import { MATERIAL_MAX_CHARS, MAX_BATCH_BODY_BYTES, type StepEvent } from '../contracts/api'
 import { validPlans } from '../fixtures/plans'
 import { testAssessment, testAssistant } from '@/test/fixtures'
 import { makeStepRequest } from '@/test/step'
@@ -206,6 +206,47 @@ describe('createHttpDeps Ultra 批量传输', () => {
       { type: 'done', output: '甲', usage: { inputTokens: 1, outputTokens: 1 } },
     ])
     expect(b.map((event) => event.type)).toEqual(['text', 'done'])
+  })
+
+  it('批量请求体超过字节上限时拆成多个请求，每个都不超限', async () => {
+    const sizes: number[] = []
+    const counts: number[] = []
+    const deps = createHttpDeps({
+      fetchImpl: async (_input, init) => {
+        const text = String(init?.body)
+        const steps = (JSON.parse(text) as { steps: unknown[] }).steps
+        sizes.push(new TextEncoder().encode(text).length)
+        counts.push(steps.length)
+        return new Response(
+          steps
+            .map((_, i) =>
+              line(i, { type: 'done', output: '好', usage: { inputTokens: 1, outputTokens: 1 } }),
+            )
+            .join(''),
+        )
+      },
+    })
+    // 每个步骤带五条写满上限的中文材料，约 36 万字节；20 个合计约 720 万字节。
+    const material = '材'.repeat(MATERIAL_MAX_CHARS)
+    const upstream = Array.from({ length: 5 }, (_, index) => ({
+      nodeId: `lane_${index}`,
+      title: '调研',
+      role: 'researcher' as const,
+      output: material,
+    }))
+    const signal = new AbortController().signal
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        collect(deps.step({ ...ultraStep(`write_u${index}`), upstream }, signal)),
+      ),
+    )
+
+    expect(sizes.length).toBeGreaterThan(1)
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(MAX_BATCH_BODY_BYTES)
+    expect(counts.reduce((sum, count) => sum + count, 0)).toBe(20)
+    for (const events of results) {
+      expect(events.map((event) => event.type)).toEqual(['done'])
+    }
   })
 
   it('普通节点仍走单个步骤接口', async () => {

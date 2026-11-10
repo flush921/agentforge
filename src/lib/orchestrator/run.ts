@@ -1,4 +1,4 @@
-import type { AgentStepRequest, StepEvent } from '../contracts/api'
+import { MATERIAL_MAX_CHARS, type AgentStepRequest, type StepEvent } from '../contracts/api'
 import type { ApiError } from '../contracts/common'
 import type { AssistantSpec } from '../contracts/assistant'
 import type { RunEvent, RunEventBody } from '../contracts/events'
@@ -263,7 +263,7 @@ function upstreamItem(state: RunState, id: string): AgentStepRequest['upstream']
       // 校准节点的产出就是本环节的成果，下游看到的应是原环节名与角色。
       title: node.node.role === 'aligner' ? base.title : node.node.title,
       role: node.node.role === 'aligner' ? base.role : node.node.role,
-      output: node.output.slice(0, 6000),
+      output: node.output.slice(0, MATERIAL_MAX_CHARS),
     },
   ]
 }
@@ -406,7 +406,7 @@ function bypassUltraGate(ctx: Context, nodeId: string): boolean {
 
 /**
  * 方向校准判定一致时，服务端不重写成果，本环节的产出就是被采用那一路的完整原文
- * （请求里的上游材料截断过 6000 字，不能拿来当产出）。
+ * （请求里的上游材料有长度上限，可能被截断，不能拿来当产出）。
  */
 function completedOutput(ctx: Context, nodeId: string, output: string): string {
   const node = ctx.state.nodes[nodeId]
@@ -532,7 +532,7 @@ function handleReview(ctx: Context, reviewerId: string): void {
       .map((issue, index) => `${index + 1}. ${issue}`)
       .join('\n')
       .slice(0, 2000),
-    previousOutput: previousOutput.slice(0, 6000),
+    previousOutput: previousOutput.slice(0, MATERIAL_MAX_CHARS),
   }
   const revisionId = nextNodeId(targetId, round, new Set(ctx.state.nodeOrder))
   const reviewId = nextNodeId(reviewerId, round, new Set([...ctx.state.nodeOrder, revisionId]))

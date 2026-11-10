@@ -10,17 +10,19 @@ function badRequest(message: string): { ok: false; response: Response } {
   return { ok: false, response: jsonError({ code: 'bad_request', message }, 400) }
 }
 
+/** maxLength 默认 20 万；带上游材料的步骤接口和批量接口会传入更大的上限。 */
 export async function readJson<T>(
   request: Request,
   schema: z.ZodType<T>,
+  maxLength = MAX_BODY_LENGTH,
 ): Promise<{ ok: true; data: T } | { ok: false; response: Response }> {
   const contentLength = request.headers.get('content-length')
-  if (contentLength !== null && Number(contentLength) > MAX_BODY_LENGTH) {
+  if (contentLength !== null && Number(contentLength) > maxLength) {
     return badRequest('请求格式不正确')
   }
 
   const text = await request.text()
-  if (text.length > MAX_BODY_LENGTH) {
+  if (text.length > maxLength) {
     return badRequest('请求格式不正确')
   }
 

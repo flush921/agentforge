@@ -9,6 +9,7 @@ import type {
 import {
   agentBatchLineSchema,
   apiErrorBodySchema,
+  MAX_BATCH_BODY_BYTES,
   MAX_BATCH_STEPS,
   assessResponseSchema,
   planResponseSchema,
@@ -47,6 +48,9 @@ export class ApiRequestError extends Error {
     this.name = 'ApiRequestError'
   }
 }
+
+/** 单个批量请求体的字节预算，比服务端上限略小，留出外层 JSON 结构的余量。 */
+const BATCH_BODY_BUDGET = MAX_BATCH_BODY_BYTES - 1000
 
 function internalError(): ApiError {
   return { code: 'internal', message: '服务内部错误' }
@@ -175,10 +179,35 @@ export function createHttpDeps(options: HttpDepsOptions = {}): OrchestratorDeps 
       flushScheduled = false
       const items = pending
       pending = []
-      for (let start = 0; start < items.length; start += MAX_BATCH_STEPS) {
-        void sendBatch(items.slice(start, start + MAX_BATCH_STEPS))
+      for (const batch of splitBatches(items)) {
+        void sendBatch(batch)
       }
     })
+  }
+
+  /**
+   * 按步骤数和请求体字节数切批。择优节点一次带五路成果，中文每字 3 字节，
+   * 二十几个步骤合在一起可能超过服务端的请求体上限，超了就另起一批。
+   */
+  function splitBatches(items: PendingStep[]): PendingStep[][] {
+    const encoder = new TextEncoder()
+    const batches: PendingStep[][] = []
+    let current: PendingStep[] = []
+    let bytes = 0
+    for (const item of items) {
+      // 多算 1 字节的分隔逗号；外层 {"steps":[]} 的十几个字节留在余量里。
+      const size = encoder.encode(JSON.stringify(item.req)).length + 1
+      const full = current.length >= MAX_BATCH_STEPS || bytes + size > BATCH_BODY_BUDGET
+      if (current.length > 0 && full) {
+        batches.push(current)
+        current = []
+        bytes = 0
+      }
+      current.push(item)
+      bytes += size
+    }
+    if (current.length > 0) batches.push(current)
+    return batches
   }
 
   async function sendBatch(items: PendingStep[]): Promise<void> {

@@ -4,6 +4,7 @@ export const maxDuration = 300
 import {
   agentBatchLineSchema,
   agentBatchRequestSchema,
+  MAX_BATCH_BODY_BYTES,
   type AgentBatchLine,
   type AgentBatchRequest,
 } from '@/lib/contracts/api'
@@ -30,7 +31,7 @@ export async function POST(request: Request): Promise<Response> {
       return denied
     }
 
-    body = await readJson(request, agentBatchRequestSchema)
+    body = await readJson(request, agentBatchRequestSchema, MAX_BATCH_BODY_BYTES)
     if (!body.ok) {
       return body.response
     }

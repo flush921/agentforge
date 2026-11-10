@@ -3,6 +3,7 @@ export const maxDuration = 300
 
 import {
   agentStepRequestSchema,
+  MAX_STEP_BODY_BYTES,
   stepEventSchema,
   type AgentStepRequest,
   type StepEvent,
@@ -31,7 +32,7 @@ export async function POST(request: Request): Promise<Response> {
       return rateLimitedResponse(limited.retryAfterSec)
     }
 
-    body = await readJson(request, agentStepRequestSchema)
+    body = await readJson(request, agentStepRequestSchema, MAX_STEP_BODY_BYTES)
   } catch (error) {
     const mapped = toApiError(error, request.signal, ROUTE)
     return jsonError(mapped.error, mapped.status)

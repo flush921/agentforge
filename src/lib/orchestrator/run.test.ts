@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { StepEvent } from '../contracts/api'
+import { MATERIAL_MAX_CHARS, type StepEvent } from '../contracts/api'
 import type { ApiError, Level } from '../contracts/common'
 import type { RunEvent } from '../contracts/events'
 import type { ComplexityAssessment, Plan, PlanNode } from '../contracts/plan'
@@ -423,12 +423,12 @@ describe('调度', () => {
     )
   })
 
-  it('13 upstream 汇总材料、截断 6000 字，isFinal 只给最终节点', async () => {
+  it('13 upstream 汇总材料、超过上限才截断，isFinal 只给最终节点', async () => {
     const { deps, calls } = createFakeDeps({
       assess: assessmentFor(3),
       plan: planResponse(3),
       steps: {
-        research_a: [done('a'.repeat(7000))],
+        research_a: [done('a'.repeat(MATERIAL_MAX_CHARS + 1000))],
         research_b: [done('B')],
       },
     })
@@ -436,7 +436,7 @@ describe('调度', () => {
     const analyst = calls.step.find((call) => call.req.node.id === 'analyst')
 
     expect(analyst?.req.upstream).toHaveLength(2)
-    expect(analyst?.req.upstream[0]?.output).toHaveLength(6000)
+    expect(analyst?.req.upstream[0]?.output).toHaveLength(MATERIAL_MAX_CHARS)
     expect(analyst?.req.upstream[1]?.output).toBe('B')
     expect(analyst?.req.isFinal).toBe(false)
     expect(calls.step.filter((call) => call.req.isFinal).map((call) => call.req.node.id)).toEqual([
@@ -639,6 +639,29 @@ describe('审校回路', () => {
 
     expect(revision?.req.revision?.previousOutput).toBe('初稿')
     expect(revision?.req.revision?.previousOutput).not.toContain('> ⚠️')
+  })
+
+  it('一万多字的长报告完整交给审校和返工，不会只给开头一段', async () => {
+    // 线上实测的最终报告有 6500~11000 字。材料上限还是 6000 字时，审校员看不到结尾，
+    // 每次都判「报告写到一半中断」并打回。
+    const report = `${'正文'.repeat(5500)}【报告结尾】`
+    const { deps, calls } = createFakeDeps({
+      assess: assessmentFor(4),
+      plan: planResponse(4),
+      steps: {
+        writer: [done(report)],
+        reviewer: [review('revise', ['补充数据']), done('审校完成')],
+        writer_r1: [done('修订稿')],
+        reviewer_r1: [review('pass'), done('复核完成')],
+      },
+    })
+    await execute(deps)
+    const firstReview = calls.step.find((call) => call.req.node.id === 'reviewer')
+    const revision = calls.step.find((call) => call.req.node.id === 'writer_r1')
+
+    expect(report.length).toBeGreaterThan(11_000)
+    expect(firstReview?.req.upstream[0]?.output).toBe(report)
+    expect(revision?.req.revision?.previousOutput).toBe(report)
   })
 
   it('23 连续三次 revise 只返工两轮并保留未解决意见警告', async () => {

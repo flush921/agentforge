@@ -12,6 +12,21 @@ import { alignResultSchema, judgeResultSchema, ultraContextSchema } from './ultr
 
 const taskSchema = z.string().trim().min(1).max(4000)
 
+/**
+ * 一条材料（上游产出、返工时的上一版）最多带多少字。
+ * 原来是 6000：线上实测最终报告有 6500~11000 字，审校员只看到前 6000 字，就判「报告写到一半中断」，
+ * 每次都打回返工两轮。开思考时单步输出上限是 16000 token，24000 字能装下一份完整产出。
+ */
+export const MATERIAL_MAX_CHARS = 24_000
+
+/**
+ * 请求体大小上限（字节）。中文每字 3 字节，一个步骤最多带 6 条上游材料加一份上一版，
+ * 默认的 20 万字节装不下，所以步骤接口和批量接口单独放宽。
+ * 批量接口的上限同时由浏览器端用来拆分批次，保证单个请求不会超限。
+ */
+export const MAX_STEP_BODY_BYTES = 1_000_000
+export const MAX_BATCH_BODY_BYTES = 4_000_000
+
 export const healthResponseSchema = z.strictObject({
   ok: z.literal(true),
   mode: z.enum(['mock', 'live']),
@@ -59,7 +74,7 @@ export const agentStepRequestSchema = z
           nodeId: nodeIdSchema,
           title: z.string().trim().min(1).max(16),
           role: agentRoleSchema,
-          output: z.string().trim().max(6000),
+          output: z.string().trim().max(MATERIAL_MAX_CHARS),
         }),
       )
       .max(6),
@@ -67,7 +82,7 @@ export const agentStepRequestSchema = z
       .strictObject({
         round: z.number().int().min(1).max(2),
         feedback: z.string().trim().min(1).max(2000),
-        previousOutput: z.string().trim().max(6000),
+        previousOutput: z.string().trim().max(MATERIAL_MAX_CHARS),
       })
       .optional(),
     ultra: ultraContextSchema.optional(),

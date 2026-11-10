@@ -7,6 +7,7 @@ import {
   assistantGenerateRequestSchema,
   assistantGenerateResponseSchema,
   healthResponseSchema,
+  MATERIAL_MAX_CHARS,
   planRequestSchema,
   planResponseSchema,
   stepEventSchema,
@@ -145,7 +146,11 @@ const cases: SchemaCase[] = [
       },
       {
         ...validStepRequest,
-        revision: { round: 1, feedback: '修改', previousOutput: 'x'.repeat(6001) },
+        revision: {
+          round: 1,
+          feedback: '修改',
+          previousOutput: 'x'.repeat(MATERIAL_MAX_CHARS + 1),
+        },
       },
     ],
   },
