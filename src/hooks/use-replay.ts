@@ -12,6 +12,8 @@ export interface UseReplayOptions {
   initialT?: number
   /** 默认 true；为 false 时不会自动播放 */
   autoplay?: boolean
+  /** 初始倍速，默认 1；演示回放用 2 倍速 */
+  initialSpeed?: number
 }
 
 export interface UseReplayResult {
@@ -46,14 +48,14 @@ function replayFromStart(events: readonly RunEvent[], t: number): ReplayCursor {
 
 export function useReplay(
   events: readonly RunEvent[],
-  { initialT = 0, autoplay = true }: UseReplayOptions = {},
+  { initialT = 0, autoplay = true, initialSpeed = 1 }: UseReplayOptions = {},
 ): UseReplayResult {
   const lastEvent = events[events.length - 1]
   const duration = lastEvent ? lastEvent.t : 0
 
   const [t, setT] = useState(() => clamp(initialT, 0, duration))
   const [playing, setPlaying] = useState(autoplay)
-  const [speed, setSpeed] = useState(1)
+  const [speed, setSpeed] = useState(() => clamp(initialSpeed, 0.1, 16))
   const [cursor, setCursor] = useState<ReplayCursor>(() =>
     replayFromStart(events, clamp(initialT, 0, duration)),
   )

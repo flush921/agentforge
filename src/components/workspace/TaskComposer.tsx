@@ -66,7 +66,10 @@ export function TaskComposer({
       <div id="workspace-task-count" className="mt-1 text-right text-[10px] text-ink-muted">
         {task.length}/4000
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+      <div
+        data-tour="composer-controls"
+        className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-3"
+      >
         {ultra ? (
           <p className="min-w-40 flex-1 text-[11px] leading-5 text-text-secondary">
             <span className="ultra-text font-semibold">Ultra · 超编排</span>

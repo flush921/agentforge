@@ -17,6 +17,7 @@ import {
 } from '@/lib/client/access'
 import { healthResponseSchema } from '@/lib/contracts/api'
 import { PRESET_ASSISTANTS } from '@/lib/fixtures/preset-assistants'
+import { useTourStore } from '@/stores/tour-store'
 
 export function AccessGate() {
   const [open, setOpen] = useState(false)
@@ -35,8 +36,12 @@ export function AccessGate() {
           signal: controller.signal,
         })
         const health = healthResponseSchema.parse(await response.json())
-        if (active && health.accessRequired && getAccessCode() === undefined) {
+        if (!active) return
+        if (health.accessRequired && getAccessCode() === undefined) {
           setOpen(true)
+        } else {
+          // 已经能进站（不需要访问码，或这个标签页输过了）：新手教程从这里开始或恢复。
+          useTourStore.getState().autoStart()
         }
       } catch {
         return
@@ -80,6 +85,8 @@ export function AccessGate() {
       }
       setCode('')
       setOpen(false)
+      // 每次输完访问码都会出现新手教程：访问码只在当前标签页有效，换一位评委重新打开时也能看到。
+      useTourStore.getState().autoStart()
     } catch {
       setError('网络连接失败，请重试')
     } finally {

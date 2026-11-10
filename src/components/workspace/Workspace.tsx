@@ -6,6 +6,7 @@ import { ArrowLeft, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TourButton } from '@/components/tour/TourButton'
 import { findAssistant } from '@/lib/client/find-assistant'
 import { cancelRun, confirm, startRun } from '@/lib/client/run-controller'
 import type { AssistantSpec } from '@/lib/contracts/assistant'
@@ -139,6 +140,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
             {assistant.tagline}
           </p>
         </div>
+        <TourButton className="px-2.5 py-1.5" />
         <Button type="button" variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
           <History aria-hidden />
           历史 ({historyCount})
@@ -201,6 +203,7 @@ function WorkspaceContent({ assistant }: { assistant: AssistantSpec }) {
 
         <section
           id="workspace-canvas"
+          data-tour="canvas"
           aria-label="编排工作区"
           className={cn(
             'min-h-0 min-w-0 flex-1 flex-col p-3 lg:flex lg:p-0',

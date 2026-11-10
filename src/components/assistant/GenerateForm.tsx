@@ -34,7 +34,7 @@ export function GenerateForm({
   }
 
   return (
-    <section aria-label="生成 Agent">
+    <section aria-label="生成 Agent" data-tour="generate">
       <form
         aria-busy={generating}
         onSubmit={(event) => {

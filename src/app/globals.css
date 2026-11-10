@@ -1087,3 +1087,49 @@ button.stellar-intro-fade {
   margin-right: 0.35rem;
   accent-color: var(--brand);
 }
+
+/* ---------- 新手教程 ---------- */
+
+/* 高亮框：一圈亮边 + 向外铺满全屏的暗色阴影，把目标以外的地方压暗。
+   框本身不接收点击（外层是 pointer-events: none），用户可以直接点到下面的元素。 */
+.tour-spot {
+  position: absolute;
+  border-radius: 14px;
+  border: 2px solid var(--brand);
+  box-shadow:
+    0 0 0 9999px rgb(0 0 0 / 0.58),
+    0 0 26px 2px color-mix(in oklab, var(--brand) 55%, transparent);
+}
+
+@keyframes tour-spot-pulse {
+  50% {
+    box-shadow:
+      0 0 0 9999px rgb(0 0 0 / 0.58),
+      0 0 40px 6px color-mix(in oklab, var(--brand) 80%, transparent);
+  }
+}
+
+@keyframes tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tour-spot {
+    animation: tour-spot-pulse 1.8s ease-in-out infinite;
+    transition:
+      left 260ms ease,
+      top 260ms ease,
+      width 260ms ease,
+      height 260ms ease;
+  }
+
+  .tour-card {
+    animation: tour-card-in 240ms ease-out;
+    transition:
+      left 260ms ease,
+      top 260ms ease;
+  }
+}

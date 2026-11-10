@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Workflow } from 'lucide-react'
+import { TourButton } from '@/components/tour/TourButton'
 
 export function SiteHeader({ libraryHref = '/#library' }: { libraryHref?: string }) {
   return (
@@ -20,12 +21,15 @@ export function SiteHeader({ libraryHref = '/#library' }: { libraryHref?: string
             by AdAstra
           </span>
         </Link>
-        <Link
-          href={libraryHref}
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-text-secondary transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          Agent 库
-        </Link>
+        <div className="flex items-center gap-2">
+          <TourButton />
+          <Link
+            href={libraryHref}
+            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-text-secondary transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Agent 库
+          </Link>
+        </div>
       </div>
     </header>
   )

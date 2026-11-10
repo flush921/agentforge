@@ -57,6 +57,8 @@ export function NodeDrawer({
       }}
     >
       <SheetContent
+        // 新手教程靠这个标记判断详情抽屉是否打开：打开时教程卡片让出画面，关上后进入下一步。
+        data-tour="node-drawer"
         className="w-full gap-0 overflow-y-auto border-border bg-panel p-0 sm:max-w-md"
         showCloseButton
       >

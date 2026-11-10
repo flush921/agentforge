@@ -75,6 +75,14 @@ function Welcome({
             type="button"
             disabled={running}
             onClick={() => onPickStarter(starter)}
+            // 新手教程按这两个标记高亮第一条（简单）和最后一条（复杂）示例。
+            data-tour={
+              index === 0
+                ? 'starter-simple'
+                : index === assistant.starters.length - 1
+                  ? 'starter-complex'
+                  : undefined
+            }
             className="flex w-full items-start gap-2.5 rounded-xl border border-border bg-panel p-3 text-left text-sm leading-6 text-text-secondary transition-colors hover:border-brand/45 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <span

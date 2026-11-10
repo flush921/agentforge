@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { AccessGate } from '@/components/site/AccessGate'
+import { TourOverlay } from '@/components/tour/TourOverlay'
 import { SiteBackdrop } from '@/components/visual/SiteBackdrop'
 import { DEFAULT_THEME, THEME_BOOT_SCRIPT } from '@/lib/visual/theme'
 import './globals.css'
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="min-h-full">
         <SiteBackdrop />
         {children}
+        <TourOverlay />
         <AccessGate />
       </body>
     </html>
